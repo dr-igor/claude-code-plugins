@@ -1,9 +1,9 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "cc-plugins",
-  "description": "Language-specific coding guidelines plugins for Claude Code",
+  "name": "cc-plugins-igorlabworks",
+  "description": "Opinionated personal plugins for Claude Code",
   "owner": {
-    "name": "Igor",
+    "name": "Igor Petrik",
     "email": "cc-plugin-market@igorlabworks.com"
   },
   "plugins": [

@@ -1,8 +1,8 @@
 {
   "name": "gha",
   "description": "GitHub Actions workflow guidelines",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "author": {
-    "name": "Igor"
+    "name": "Igor Petrik"
   }
 }

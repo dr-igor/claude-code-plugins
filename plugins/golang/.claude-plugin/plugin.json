@@ -1,8 +1,8 @@
 {
   "name": "golang",
   "description": "Go coding guidelines and best practices",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "author": {
-    "name": "Igor"
+    "name": "Igor Petrik"
   }
 }

@@ -10,9 +10,13 @@ content_file = Path(plugin_root) / "CLAUDE_.md"
 if not content_file.is_file():
     sys.exit(0)
 
+absolute_path = content_file.resolve()
+content = content_file.read_text()
+formatted_content = f"Contents of {absolute_path}:\n\n{content}"
+
 print(json.dumps({
     "hookSpecificOutput": {
         "hookEventName": "SessionStart",
-        "additionalContext": content_file.read_text(),
+        "additionalContext": formatted_content,
     }
 }))

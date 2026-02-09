@@ -171,7 +171,7 @@ To modify or add plugins:
    ├── hooks/
    │   ╰── hooks.json              # Hook configuration
    ╰── scripts/
-       ╰── session-start.py        # Hook execution script
+       ╰── <name>-session-start.py # Hook execution script (unique per plugin)
 ```
 
 3. After changes, validate:
