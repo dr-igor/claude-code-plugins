@@ -15,6 +15,7 @@ content = content_file.read_text()
 formatted_content = f"Contents of {absolute_path}:\n\n{content}"
 
 print(json.dumps({
+    "systemMessage": f"cc-plugins-igorlabworks/typescript: {absolute_path} added to context.",
     "hookSpecificOutput": {
         "hookEventName": "SessionStart",
         "additionalContext": formatted_content,

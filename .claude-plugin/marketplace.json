@@ -10,42 +10,42 @@
     {
       "name": "python",
       "description": "Python coding guidelines and best practices",
-      "version": "1.0.0",
+      "version": "1.0.5",
       "source": "./plugins/python",
       "category": "development"
     },
     {
       "name": "typescript",
       "description": "TypeScript coding guidelines and best practices",
-      "version": "1.0.0",
+      "version": "1.0.5",
       "source": "./plugins/typescript",
       "category": "development"
     },
     {
       "name": "rust",
       "description": "Rust coding guidelines and best practices",
-      "version": "1.0.0",
+      "version": "1.0.5",
       "source": "./plugins/rust",
       "category": "development"
     },
     {
       "name": "golang",
       "description": "Go coding guidelines and best practices",
-      "version": "1.0.0",
+      "version": "1.0.5",
       "source": "./plugins/golang",
       "category": "development"
     },
     {
       "name": "gha",
       "description": "GitHub Actions workflow guidelines",
-      "version": "1.0.0",
+      "version": "1.0.5",
       "source": "./plugins/gha",
       "category": "development"
     },
     {
       "name": "fish",
       "description": "Fish shell scripting guidelines",
-      "version": "1.0.0",
+      "version": "1.0.5",
       "source": "./plugins/fish",
       "category": "development"
     }
