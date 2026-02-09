@@ -14,32 +14,94 @@ This marketplace provides plugins that automatically inject best practices and c
 ## Available Plugins
 
 ### Python (`python`)
-Injects Python coding guidelines covering PEP 8, type hints, modern Python patterns, async/await, testing with pytest, and more.
 
-**Best for**: Python projects using modern Python 3.9+
+Injects Python coding conventions and advanced software engineering patterns:
+
+**Conventions:**
+
+- Strict typing with type hints and generic types
+- Modern Python idioms (`pathlib`, f-strings, dataclasses, `Protocol`s)
+- Dependency management with `uv` and `pyproject.toml`
+- Pythonic error handling ("ask forgiveness, not permission")
+- Declarative vs imperative code patterns
+- Full-object assertions in pytest
+
+**Engineering:**
+
+- Behavioral testing over structural testing
+- Type discrimination at ingestion with error wrapping
+- Encapsulating external resources in client protocols
+
+**Best for**: Python 3.10+ projects
 
 ### TypeScript (`typescript`)
-Injects TypeScript best practices including strict mode patterns, type safety, async patterns, error handling, and testing conventions.
+
+Injects TypeScript coding conventions and advanced software engineering patterns:
+
+**Conventions:**
+
+- Required use of TypeScript (no untyped JavaScript)
+- Strict typing (no `any`, use `unknown` when necessary)
+- Declarative vs imperative code patterns
+- Proper resource cleanup with try/finally
+
+**Engineering:**
+
+- Behavioral testing over structural testing
+- Type discrimination at ingestion with error wrapping
+- Type guards and discriminated unions
 
 **Best for**: TypeScript/JavaScript projects
 
 ### Rust (`rust`)
-Injects Rust idioms covering ownership patterns, error handling with thiserror/anyhow, async with tokio, iterator patterns, and testing.
+
+Injects Rust coding conventions and advanced software engineering patterns:
+
+**Conventions:**
+
+- Declarative vs imperative code patterns (iterator chains)
+- RAII patterns with Drop trait for resource cleanup
+- Custom RAII guards for transactions and resources
+
+**Engineering:**
+
+- Type discrimination at ingestion using `serde` tagged enums
+- Pattern matching for type-specific logic
 
 **Best for**: Rust projects and CLI tools
 
 ### Go (`golang`)
-Injects Go conventions from Effective Go, including error handling, interface design, concurrency patterns, and testing.
+
+Injects Go conventions following Effective Go principles:
+
+- Code style and formatting (`gofmt`, naming conventions, acronym consistency)
+- Package organization (single responsibility, avoiding util packages)
+- Error handling (wrapping with context, error chains, sentinel errors)
+- Interfaces and types (define where consumed, accept interfaces/return structs)
+- Concurrency patterns (goroutines, channels, context propagation)
+- Context best practices (first parameter, never store in structs)
 
 **Best for**: Go projects and services
 
 ### GitHub Actions (`gha`)
-Injects GitHub Actions workflow best practices covering security, reusability, performance optimization, and debugging.
+
+Injects GitHub Actions workflow conventions:
+
+- Security: avoid direct context variable substitution in scripts (use environment variables)
+- Reusability: search for existing reputable actions before reimplementing common functionality
 
 **Best for**: Repositories with `.github/workflows/` CI/CD pipelines
 
 ### Fish (`fish`)
-Injects Fish shell scripting guidelines covering Fish-specific syntax, variable scoping, functions, completions, and patterns.
+
+Injects Fish shell scripting conventions focused on bash/zsh compatibility issues:
+
+- **Critical:** No heredoc support (`<< EOF ... EOF`) - use multi-line strings with pipes instead
+- Variable assignment and usage (`set`, `set -l`, `set -x`, `set -Ux`)
+- Fish paths as lists (not colon-separated strings)
+- Command substitution syntax (`set value (command)`)
+- Redirection patterns (`&>` for stdout and stderr)
+- Conditional expressions (`test`/`[`, no `[[`, close with `end` not `fi`)
 
 **Best for**: Fish shell script development and configuration
 
@@ -82,6 +144,7 @@ Or enable globally if you want guidelines available in all sessions:
 ## How It Works
 
 Each plugin contains:
+
 - A `SessionStart` hook that runs automatically when you start a Claude Code session
 - A `CLAUDE_.md` file with language-specific guidelines
 - A Python script that safely injects the guidelines as additional context
@@ -92,19 +155,24 @@ When you start a session in a project with an enabled plugin, Claude automatical
 
 - **Enable project-specific plugins**: Use `/plugin enable <name>` in each project directory to only inject relevant guidelines
 - **Check active plugins**: Use `/plugin list` to see which plugins are enabled
-- **Verify hook execution**: Enable verbose mode (Ctrl+O) to see the SessionStart hook output
+- **Verify hook execution**: Enable verbose mode (Ctrl+O) to see the `SessionStart` hook output
 - **Update plugins**: Use `/plugin update <name>@cc-plugins` to get the latest guidelines
 
 ## Development
 
 To modify or add plugins:
 
-1. Each plugin lives in `plugins/<name>/`
-2. Plugin structure:
-   - `.claude-plugin/plugin.json` - Plugin manifest
-   - `hooks/hooks.json` - Hook configuration
-   - `scripts/session-start.py` - Hook execution script (must be executable)
-   - `CLAUDE_.md` - The actual guidelines content
+```
+   plugins/<name>/
+   ├── CLAUDE_.md                  # Context to be automatically injected; lists additional contexts for progressive disclosure
+   ├── contexts/
+   │   ├── conventions.md          # Coding conventions
+   │   ╰── engineering.md          # Engineering practices (optional)
+   ├── hooks/
+   │   ╰── hooks.json              # Hook configuration
+   ╰── scripts/
+       ╰── session-start.py        # Hook execution script
+```
 
 3. After changes, validate:
    ```bash
@@ -113,4 +181,6 @@ To modify or add plugins:
 
 ## License
 
-Personal use marketplace. Individual plugin content is based on community best practices and official documentation.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+Individual plugin content is based on community best practices, official documentation, and established coding conventions.
