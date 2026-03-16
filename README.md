@@ -105,6 +105,24 @@ Injects Fish shell scripting conventions focused on bash/zsh compatibility issue
 
 **Best for**: Fish shell script development and configuration
 
+### Terraform/OpenTofu (`tf`)
+
+Injects Terraform/OpenTofu infrastructure-as-code conventions:
+
+- Tool preference: prefer OpenTofu for new projects, use existing tool for existing projects
+- Version management: bounded version constraints (`>= 1.10, < 1.16`)
+- Provider configuration: pessimistic version pinning (`~>`), no hardcoded credentials
+- Module structure: standard file layout (`main.tf`, `variables.tf`, `outputs.tf`, etc.)
+- Naming conventions: `snake_case`, descriptive names, `enable_`/`is_` boolean prefixes
+- Variables and outputs: always include `type` and `description`, use validation blocks
+- Data sources over hardcoding: look up existing infrastructure
+- State management: remote backends with locking, separate state per environment
+- Security: no secrets in code/state, `sensitive = true` for sensitive values
+- Testing: built-in `terraform test`/`tofu test` framework with behavioral assertions
+- Expressions: `for_each` over `count`, use `locals` for repeated expressions
+
+**Best for**: Terraform/OpenTofu infrastructure-as-code projects (versions 1.10+)
+
 ## Installation
 
 ### 1. Add this marketplace to Claude Code
@@ -124,6 +142,7 @@ Install one or more plugins:
 /plugin install golang@cc-plugins
 /plugin install gha@cc-plugins
 /plugin install fish@cc-plugins
+/plugin install tf@cc-plugins
 ```
 
 ### 3. Enable plugins in your projects
