@@ -48,6 +48,13 @@
       "version": "1.0.5",
       "source": "./plugins/fish",
       "category": "development"
+    },
+    {
+      "name": "tf",
+      "description": "Terraform/OpenTofu infrastructure-as-code guidelines",
+      "version": "1.0.5",
+      "source": "./plugins/tf",
+      "category": "development"
     }
   ]
 }

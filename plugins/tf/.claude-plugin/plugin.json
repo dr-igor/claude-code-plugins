@@ -1,0 +1,8 @@
+{
+  "name": "tf",
+  "description": "Terraform/OpenTofu infrastructure-as-code guidelines",
+  "version": "1.0.5",
+  "author": {
+    "name": "Igor Petrik"
+  }
+}
