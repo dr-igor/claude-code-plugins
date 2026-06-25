@@ -46,6 +46,42 @@ _PER_SEGMENT_INDICATORS = (
 )
 
 
+def braille_bar_cells(
+    percentages: tuple[float, float, float, float],
+    *,
+    size: int = PROGRESS_BAR_SEGMENTS,
+    markers: Iterable[tuple[int, int]] = [],
+) -> list[str]:
+    segments = [0] * size
+
+    for row_indicators, row_percent in zip(_PER_SEGMENT_INDICATORS, percentages):
+        for pos in range(position_from_percentage(row_percent, size=size)):
+            segments[pos // 2] |= row_indicators[pos % 2]
+
+    for marker_row, marker_percentage in markers:
+        marker_pos = position_from_percentage(marker_percentage, size=size)
+        segments[marker_pos // 2] |= _PER_SEGMENT_INDICATORS[marker_row][marker_pos % 2]
+
+    return [chr(ord("⠀") | bits) for bits in segments]
+
+
+def position_from_percentage(
+    percentage: float, *, size: int = PROGRESS_BAR_SEGMENTS
+) -> int:
+    return round(clamp(percentage) * (2 * size / 100))
+
+
+def clamp(value: float, min_value: float = 0.0, max_value: float = 100.0) -> float:
+    return max(min_value, min(max_value, value))
+
+
+def braille_bar_color(cell_index: int, *, size: int = PROGRESS_BAR_SEGMENTS) -> str:
+    start_pct = cell_index * (100.0 / size)
+    if start_pct >= 90:
+        return "red"
+    if start_pct >= 60:
+        return "yellow"
+    return "green"
 
 
 class Model(TypedDict):
