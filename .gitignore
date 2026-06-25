@@ -1,4 +1,5 @@
 *.DS_Store
-.claude/
+.claude/settings.local.json
 .mypy_cache/
+.ruff_cache/
 __pycache__/

@@ -29,6 +29,8 @@ Use `uv` and `pyproject.toml` for dependency management.
 
 - Use strict typing
 - Use type hints in code you generate, even if existing code does not
+- Take advantage of the latest typing features in the supported Python version (e.g. `ParamSpec`, `TypeGuard`, `Self`, etc.)
+- Explicitly define type stubs for external libraries instead of using `# type: ignore` or `Any`.
 
 ## Error Handling
 

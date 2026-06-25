@@ -1,0 +1,17 @@
+#!/bin/sh
+# Dispatch to the platform-specific shell-guard binary, passing stdin through.
+# Fails open: if the binary for this platform is missing or not executable, exit
+# 0 so the agent is never blocked by a packaging problem.
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+os=$(uname -s | tr '[:upper:]' '[:lower:]')
+arch=$(uname -m)
+case "$arch" in
+	x86_64 | amd64) arch=amd64 ;;
+	arm64 | aarch64) arch=arm64 ;;
+esac
+
+bin="$root/libexec/${os}-${arch}/shell-guard"
+[ -x "$bin" ] || exit 0
+exec "$bin" "$@"

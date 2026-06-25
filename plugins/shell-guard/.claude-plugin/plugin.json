@@ -1,0 +1,8 @@
+{
+  "name": "shell-guard",
+  "description": "Auto-rejects common, known-annoying shell command patterns (complexity/efficiency guard, not a security boundary)",
+  "version": "0.1.0",
+  "author": {
+    "name": "Igor Petrik"
+  }
+}

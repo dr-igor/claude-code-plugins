@@ -1,0 +1,15 @@
+{
+  "description": "Injects language-specific coding guidelines on session start",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/svelte-session-start.py"
+          }
+        ]
+      }
+    ]
+  }
+}

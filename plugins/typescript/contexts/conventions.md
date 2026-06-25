@@ -2,8 +2,13 @@
 
 ## Typing
 
-- Always use strict typing for TypeScript.
-- Do not use `any` type; `unknown` is acceptable if necessary.
+Type safety must be a top priority, even if it makes the code more verbose. Completely typed code catches more issues sooner.
+
+- Leverage TypeScript's latest features to ensure that types are well defined.
+- Do not take shortcuts with typing, unless it is the _only_ way to solve the problem.
+  - Avoid explicit casting; if you find yourself using `as` or `satisfies`, consider if there is a more type-safe way to achieve the same result, even if more verbose.
+    - Assume the function is generic and try type specification first (e.g. `getContext<ExpectedType>()` instead of `getContext() as ExpectedType`).
+- **Never** use `any`.
 
 ## Clean Code Examples
 

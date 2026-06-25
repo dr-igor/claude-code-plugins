@@ -1,0 +1,260 @@
+# /// script
+# dependencies = [
+#   "typer",
+#   "rich",
+# ]
+# ///
+"""Claude Code status line renderer.
+
+Configure in ~/.claude/settings.json:
+
+    {
+      "statusLine": {
+        "type": "command",
+        "command": "uv run /path/to/statusline.py",
+        "padding": 0
+      }
+    }
+"""
+
+import json
+import logging
+import re
+import sys
+from collections.abc import Iterable
+from os import environ
+from typing import Annotated, Literal, TypedDict
+
+import typer
+from rich.console import Console
+from rich.text import Text
+
+console = Console(force_terminal=True, color_system="truecolor")
+
+logger = logging.getLogger("__main__")
+
+app = typer.Typer()
+
+
+PROGRESS_BAR_SEGMENTS = 20
+
+_PER_SEGMENT_INDICATORS = (
+    (ord("⠁"), ord("⠈")),
+    (ord("⠂"), ord("⠐")),
+    (ord("⠄"), ord("⠠")),
+    (ord("⡀"), ord("⢀")),
+)
+
+
+
+
+class Model(TypedDict):
+    id: str
+    display_name: str
+
+
+MODEL_RANK = {
+    "haiku": 2,
+    "sonnet": 4,
+    "opus": 6,
+    "fable": 8,
+    "mythos": 8,
+}
+
+MODEL_BRAILE = {
+    "haiku": "⡀",
+    "sonnet": "⡄",
+    "opus": "⡆",
+    "fable": "⡇",
+    "mythos": "⡇",
+}
+
+
+class Effort(TypedDict):
+    level: (
+        Literal["low"]
+        | Literal["medium"]
+        | Literal["high"]
+        | Literal["xhigh"]
+        | Literal["max"]
+    )
+
+
+EFFORT_RANK = {
+    "low": 0,
+    "medium": 1,
+    "high": 2,
+    "xhigh": 3,
+    "max": 4,
+}
+
+EFFORT_BRAILE = {
+    "low": "⠀",
+    "medium": "⢀",
+    "high": "⢠",
+    "xhigh": "⢰",
+    "max": "⢸",
+}
+
+
+class Repo(TypedDict):
+    host: str
+    owner: str
+    name: str
+
+
+class Workspace(TypedDict):
+    repo: Repo
+
+
+class Cost(TypedDict):
+    total_cost_usd: float
+    total_duration_ms: int
+    total_api_durration_ms: int
+    total_lines_added: int
+    total_lines_removed: int
+
+
+class Thinking(Workspace):
+    enabled: bool
+
+
+class RateLimit(TypedDict):
+    used_percentage: float
+    resets_at: int
+
+
+class RateLimits(TypedDict):
+    five_hour: RateLimit
+    seven_day: RateLimit
+
+
+class ContextWindow(TypedDict):
+    total_input_tokens: int
+    total_output_tokens: int
+    context_window_size: int
+    current_usage: int | None
+    used_percentage: float | None
+    remaining_percentage: float | None
+
+
+class Vim(TypedDict):
+    mode: Literal["INSERT"] | Literal["NORMAL"] | Literal["VISUAL"] | Literal["REPLACE"]
+
+
+class Payload(TypedDict):
+    version: str
+    session_id: str
+    cwd: str
+    model: Model
+    thinking: Thinking
+    effort: Effort
+    fast_mode: bool
+    workspace: Workspace
+    cost: Cost
+    context_window: ContextWindow
+    rate_limits: RateLimits
+    vim: Vim
+
+
+model_base_extractor = re.compile(r"(?P<model_base>haiku|sonnet|opus|epic)")
+
+
+@app.command()
+def main(
+    payload: Annotated[
+        Payload,
+        typer.Argument(
+            default_factory=lambda: sys.stdin,
+            show_default="sys.stdin",
+            parser=json.load,
+        ),
+    ],
+):
+    _setup_logger()
+
+    logger.info(f"Received payload: {json.dumps(payload, indent=2)}")
+
+    factory = ComponentFactory(payload)
+
+    console.print(
+        factory.model_braile()
+        + " "
+        + factory.thinking_indicator()
+        + "|"
+        + factory.braille_progress()
+        + "|"
+    )
+
+
+def _pct(value: float | None) -> float:
+    return float(value or 0)
+
+
+class ComponentFactory:
+    def __init__(self, payload: Payload):
+        self.payload = payload
+
+    def model_braile(self) -> Text:
+        model_short = None
+        model_rank = 0
+
+        if m := model_base_extractor.search(self.payload["model"]["id"]):
+            model_short = m.group("model_base")
+            model_rank = MODEL_RANK.get(model_short, 0)
+
+        effort = self.payload.get("effort", {}).get("level", "")
+        effort_rank = EFFORT_RANK.get(effort, 0)
+
+        model_effort_braile = chr(
+            ord(MODEL_BRAILE.get(model_short, "⠀"))
+            | ord(EFFORT_BRAILE.get(effort, "⠀"))
+        )
+
+        return Text(
+            model_effort_braile,
+            style=f"bold {total_rank_to_color(model_rank + effort_rank)}",
+        )
+
+    def thinking_indicator(self) -> str:
+        if self.payload["thinking"]["enabled"]:
+            return "🤔 "
+        return ""
+
+    def braille_progress(self) -> Text:
+        # Top to bottom: 5h rate limit, 7d rate limit, context window, cost.
+        rate_limits = self.payload.get("rate_limits", {})
+        five_hour = _pct(rate_limits.get("five_hour", {}).get("used_percentage"))
+        seven_day = _pct(rate_limits.get("seven_day", {}).get("used_percentage"))
+        context = _pct(self.payload.get("context_window", {}).get("used_percentage"))
+        cost = _pct(self.payload.get("cost", {}).get("total_cost_usd"))
+
+        text = Text()
+        for i, cell in enumerate(
+            braille_bar_cells(
+                (five_hour, seven_day, context, cost),
+                markers=[(0, 0), (1, 0), (2, 0), (3, 0)],
+            )
+        ):
+            text.append(cell, style=braille_bar_color(i))
+        return text
+
+
+def _setup_logger():
+    debug = environ.get("STATUSLINE_DEBUG", "false").lower() == "true"
+    if debug:
+        logging.basicConfig(filename="statusline.log", level=logging.INFO)
+
+
+def total_rank_to_color(total_rank: int) -> str:
+    if total_rank <= 3:
+        return "green"
+    elif total_rank <= 6:
+        return "yellow"
+    elif total_rank <= 8:
+        return "orange"
+    return "red"
+
+
+if __name__ == "__main__":
+    app()

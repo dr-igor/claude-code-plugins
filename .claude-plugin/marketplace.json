@@ -1,5 +1,5 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "$schema": "https://www.schemastore.org/claude-code-marketplace.json",
   "name": "cc-plugins-igorlabworks",
   "description": "Opinionated personal plugins for Claude Code",
   "owner": {
@@ -10,7 +10,7 @@
     {
       "name": "python",
       "description": "Python coding guidelines and best practices",
-      "version": "1.0.5",
+      "version": "1.0.6",
       "source": "./plugins/python",
       "category": "development"
     },
@@ -19,6 +19,13 @@
       "description": "TypeScript coding guidelines and best practices",
       "version": "1.0.5",
       "source": "./plugins/typescript",
+      "category": "development"
+    },
+    {
+      "name": "svelte",
+      "description": "Svelte coding guidelines and best practices",
+      "version": "1.0.0",
+      "source": "./plugins/svelte",
       "category": "development"
     },
     {
@@ -40,21 +47,58 @@
       "description": "GitHub Actions workflow guidelines",
       "version": "1.0.5",
       "source": "./plugins/gha",
-      "category": "development"
+      "category": "ci"
     },
     {
       "name": "fish",
       "description": "Fish shell scripting guidelines",
       "version": "1.0.5",
       "source": "./plugins/fish",
-      "category": "development"
+      "category": "computer-use"
     },
     {
       "name": "tf",
       "description": "Terraform/OpenTofu infrastructure-as-code guidelines",
       "version": "1.0.5",
       "source": "./plugins/tf",
+      "category": "infrastructure"
+    },
+    {
+      "name": "planning",
+      "description": "Skills for planning",
+      "version": "1.0.0",
+      "source": "./plugins/planning",
+      "category": "productivity"
+    },
+    {
+      "name": "shell-guard",
+      "description": "Auto-rejects common, known-annoying shell command patterns (complexity/efficiency guard, not a security boundary)",
+      "version": "0.1.0",
+      "source": "./plugins/shell-guard",
+      "category": "computer-use"
+    },
+    {
+      "name": "just",
+      "description": "Just command runner guidelines",
+      "version": "0.1.0",
+      "source": "./plugins/just",
       "category": "development"
+    },
+    {
+      "name": "visualize",
+      "source": "./plugins/visualize",
+      "description": "Create beautiful, self-contained HTML visualizations from any content or idea. Slide decks, dashboards, infographics, flowcharts, timelines, and more.\n\n(adapted from `careerhackeralex/visualize`)",
+      "version": "0.4.0",
+      "license": "MIT",
+      "keywords": [
+        "visualization",
+        "html",
+        "slides",
+        "dashboard",
+        "infographic",
+        "design"
+      ],
+      "category": "document-creation"
     }
   ]
 }

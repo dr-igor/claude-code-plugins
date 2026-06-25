@@ -1,0 +1,8 @@
+{
+  "name": "svelte",
+  "description": "Svelte coding guidelines and best practices",
+  "version": "1.0.0",
+  "author": {
+    "name": "Igor Petrik"
+  }
+}

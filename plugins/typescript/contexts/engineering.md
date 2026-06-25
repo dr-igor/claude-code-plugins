@@ -83,3 +83,131 @@ class ErrorShape {
   }
 }
 ```
+
+Create type predicates for discrimination wherever possible.
+
+### Discriminated Union Maps for Correlation
+
+Define a single map interface where keys are discriminant strings and values define the remainder of the type. Derive concrete types via the mapped type. This allows type-safe correlation of types without needing `switch`, `as`, or `satisfies`.
+
+```typescript
+interface MessageToContentMap {
+  scan: { imageUrls: string[] };
+  highlight: { selector: string; color: string };
+  clear: Record<string, never>;
+}
+
+type MessageToContent<K extends keyof MessageToContentMap> = {
+  type: K;
+} & MessageToContentMap[K];
+
+type ScanMessage = MessageToContent<"scan">;
+type HighlightMessage = MessageToContent<"highlight">;
+type ClearMessage = MessageToContent<"clear">;
+
+type ResponseMessageMap = {
+  scan: { success: boolean; scannedCount: number };
+  highlight: { success: boolean };
+  clear: { success: boolean };
+};
+
+type ContentHandler<K extends keyof MessageToContentMap, R = void> = (
+  msg: MessageToContent<K>,
+  sendResponse: (response: ResponseMessageMap[K]) => void,
+) => R;
+
+const handlers: {
+  [K in keyof MessageToContentMap]: ContentHandler<K>;
+} = {
+  scan: (msg, sendResponse) => {
+    /* msg is ScanMessage */
+  },
+  highlight: (msg, sendResponse) => {
+    /* msg is HighlightMessage */
+  },
+  clear: (msg, sendResponse) => {
+    /* msg is ClearMessage */
+  },
+};
+
+function dispatch<K extends keyof MessageToContentMap>(
+  key: K,
+  message: MessageToContent<K>,
+  sendResponse: (response: ResponseMessageMap[K]) => void,
+): void {
+  handlers[key](message, sendResponse);
+}
+
+browser.runtime.onMessage.addListener<MessageToContent>(
+  (message, _sender, sendResponse) => {
+    dispatch(message.type, message, sendResponse);
+    return true;
+  },
+);
+```
+
+### Generic API Wrappers
+
+Add type parameters to API type definitions to allow callers to specify the expected return type, instead of forcing them to use `as` casts.
+
+```typescript
+// ✓ Generic wrapper — caller controls the return type
+// chrome.d.ts
+declare namespace chrome {
+  namespace storage {
+    namespace local {
+      function get<T extends Record<string, unknown>>(
+        keys?: string | string[] | null,
+      ): Promise<T>;
+      function set<T extends Record<string, unknown>>(items: T): Promise<void>;
+    }
+  }
+  namespace runtime {
+    function sendMessage<M, T>(message: M): Promise<T>;
+    namespace onMessage {
+      function addListener<T, R>(
+        callback: (
+          message: T,
+          sender: MessageSender,
+          sendResponse: (response: R) => void,
+        ) => boolean | void,
+      ): void;
+    }
+  }
+}
+
+function sendMessage<M, T>(message: M): Promise<T> {
+  return chrome.runtime.sendMessage<M, T>(message);
+}
+
+function addListener<T>(callback: (msg: T) => void): void {
+  chrome.runtime.onMessage.addListener<T, void>(callback);
+}
+
+async function storageGet<T extends Record<string, unknown>>(
+  keys: string[],
+): Promise<T> {
+  return chrome.storage.local.get<T>(keys);
+}
+
+// ✗ Avoid — forces `as` casts
+function sendMessage<M, T>(message: M): Promise<T> {
+  return chrome.runtime.sendMessage(message) as Promise<T>;
+}
+
+function addListener<T>(callback: (msg: T) => void): void {
+  chrome.runtime.onMessage.addListener(
+    callback as (
+      message: unknown,
+      sender: MessageSender,
+      sendResponse: (response: unknown) => void,
+    ) => boolean | void,
+  );
+}
+
+async function storageGet<T extends Record<string, unknown>>(
+  keys: string[],
+): Promise<T> {
+  return chrome.storage.local.get(keys) as Promise<T>;
+}
+```
