@@ -111,26 +111,27 @@ class ComponentFactory:
         context = _pct(self.payload.get("context_window", {}).get("used_percentage"))
         cost = _pct(self.payload.get("cost", {}).get("total_cost_usd"))
 
-        percent_to_5h_reset = (
-            (
-                datetime.fromtimestamp(
-                    rate_limits.get("five_hour", {}).get("resets_at")
-                )
-                - datetime.now()
-            ).total_seconds()
-            / timedelta(hours=5).total_seconds()
-            * 100
-        )
-        percent_to_7d_reset = (
-            (
-                datetime.fromtimestamp(
-                    rate_limits.get("seven_day", {}).get("resets_at")
-                )
-                - datetime.now()
-            ).total_seconds()
-            / timedelta(days=7).total_seconds()
-            * 100
-        )
+        resets_at_5h = rate_limits.get("five_hour", {}).get("resets_at")
+        resets_at_7d = rate_limits.get("seven_day", {}).get("resets_at")
+
+        percent_to_5h_reset = 100
+        percent_to_7d_reset = 100
+
+        limit_markers = []
+        if resets_at_5h is not None:
+            percent_to_5h_reset = (
+                (datetime.fromtimestamp(resets_at_5h) - datetime.now()).total_seconds()
+                / timedelta(hours=5).total_seconds()
+                * 100
+            )
+            limit_markers.append((0, 100 - percent_to_5h_reset, True))
+        if resets_at_7d is not None:
+            percent_to_7d_reset = (
+                (datetime.fromtimestamp(resets_at_7d) - datetime.now()).total_seconds()
+                / timedelta(days=7).total_seconds()
+                * 100
+            )
+            limit_markers.append((1, 100 - percent_to_7d_reset, True))
 
         text = Text()
         for i, cell in enumerate(
@@ -141,9 +142,8 @@ class ComponentFactory:
                     (1, 0, False),
                     (2, 0, False),
                     (3, 0, False),
-                    (0, 100 - percent_to_5h_reset, True),
-                    (1, 100 - percent_to_7d_reset, True),
-                ],
+                ]
+                + limit_markers,
             )
         ):
             text.append(cell, style=braille_bar_color(i))
@@ -164,7 +164,7 @@ class ComponentFactory:
         return text
 
 
-model_base_extractor = re.compile(r"(?P<model_base>haiku|sonnet|opus|epic)")
+model_base_extractor = re.compile(r"(?P<model_base>haiku|sonnet|opus|fable|mythos)")
 
 MODEL_RANK = {
     "haiku": 2,
