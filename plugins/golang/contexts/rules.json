@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "context": "contexts/conventions.md",
+      "tools": [
+        "Edit",
+        "Write",
+        "NotebookEdit"
+      ],
+      "extensions": [
+        ".go"
+      ]
+    },
+    {
+      "context": "contexts/engineering.md",
+      "tools": [
+        "Edit",
+        "Write",
+        "NotebookEdit"
+      ],
+      "extensions": [
+        ".go"
+      ],
+      "project_markers": [
+        "go.mod"
+      ]
+    }
+  ]
+}

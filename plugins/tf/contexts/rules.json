@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "context": "contexts/conventions.md",
+      "tools": [
+        "Edit",
+        "Write",
+        "NotebookEdit"
+      ],
+      "extensions": [
+        ".tf",
+        ".tfvars",
+        ".hcl"
+      ]
+    }
+  ]
+}

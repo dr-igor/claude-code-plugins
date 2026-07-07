@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "context": "contexts/conventions.md",
+      "tools": [
+        "Edit",
+        "Write",
+        "NotebookEdit"
+      ],
+      "extensions": [
+        ".rs"
+      ]
+    },
+    {
+      "context": "contexts/engineering.md",
+      "tools": [
+        "Edit",
+        "Write",
+        "NotebookEdit"
+      ],
+      "extensions": [
+        ".rs"
+      ],
+      "project_markers": [
+        "Cargo.toml"
+      ]
+    }
+  ]
+}

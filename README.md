@@ -4,7 +4,10 @@ Personal marketplace for Claude Code plugins that inject language-specific codin
 
 ## Overview
 
-This marketplace provides plugins that automatically inject best practices and coding guidelines whenever you work on projects in specific languages. Each plugin uses a `SessionStart` hook to seamlessly add relevant context to your Claude Code sessions.
+This marketplace provides plugins that automatically inject best practices and coding guidelines whenever you work on projects in specific languages. Each plugin uses two complementary hooks:
+
+- A `SessionStart` hook that adds a lightweight pointer (`CLAUDE_.md`) listing the available context files.
+- A `PreToolUse` hook that **deterministically** injects the full guideline files the moment you edit a matching file (e.g. a `.py` edit pulls in the Python conventions). This is pure rule evaluation — no LLM decides relevance — and each context is injected at most once per compaction window, verified by scanning the conversation transcript. This ensures less sophisticated models still receive the right context without bloating it with rules they don't need.
 
 ## Prerequisites
 
@@ -12,6 +15,15 @@ This marketplace provides plugins that automatically inject best practices and c
 - **Claude Code**: These plugins are designed for use with Claude Code.
 
 ## Available Plugins
+
+### Core Context (`core-context`)
+
+Injects global, language-agnostic coding-rule files from `~/.claude/additional-context/` based on what you are doing:
+
+- **On editing any recognized code file**: `code-fundamentals.md` and `narrative-code-flow.md`; plus `software-engineering.md` when a project marker (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `Makefile`, …) is found in the file's ancestor directories.
+- **On running a shell command**: `terminal-tool-usage.md`; plus `linting.md` when the command invokes a known linter/formatter (`ruff`, `eslint`, `prettier`, `mypy`, `cargo clippy`, `shellcheck`, `terraform fmt`, …).
+
+**Best for**: applying your personal global coding rules across every language. Requires the corresponding files to exist under `~/.claude/additional-context/`.
 
 ### Python (`python`)
 
@@ -136,6 +148,7 @@ Injects Terraform/OpenTofu infrastructure-as-code conventions:
 Install one or more plugins:
 
 ```bash
+/plugin install core-context@cc-plugins
 /plugin install python@cc-plugins
 /plugin install typescript@cc-plugins
 /plugin install rust@cc-plugins
@@ -164,11 +177,13 @@ Or enable globally if you want guidelines available in all sessions:
 
 Each plugin contains:
 
-- A `SessionStart` hook that runs automatically when you start a Claude Code session
-- A `CLAUDE_.md` file with language-specific guidelines
-- A Python script that safely injects the guidelines as additional context
+- A `SessionStart` hook that runs when you start a session and injects the plugin's `CLAUDE_.md` pointer.
+- A `PreToolUse` hook (`scripts/<name>-context-inject.py`) that fires on `Edit`/`Write`/`NotebookEdit` (and `Bash` for `core-context`). It reads the plugin's `contexts/rules.json`, matches the edited file's extension / path / project markers (or the command, for Bash rules), and injects the matching context file(s).
+- `contexts/rules.json` — a declarative mapping of trigger conditions to context files. The injector script's **content** is byte-identical across all plugins (it derives everything from `${CLAUDE_PLUGIN_ROOT}`); only its **filename** differs per plugin — Claude Code deduplicates hook commands per event by command name, so each copy must be uniquely named (the same reason the `<name>-session-start.py` scripts are). Only `rules.json` varies in substance.
 
-When you start a session in a project with an enabled plugin, Claude automatically receives the relevant coding guidelines without any manual intervention.
+**Deduplication**: before injecting, the injector script streams the conversation transcript and skips any context already loaded since the last compaction boundary. It recognizes prior injections (by the `Contents of <path>:` sentinel) as well as cases where the model already read the file itself — via the `Read` tool (relative paths resolved against the transcript entry's own `cwd`) or a Bash pager command (`cat`/`head`/`tail`/`less`/`more`/`bat`) naming the file. Any hook failure exits cleanly without blocking the tool call.
+
+When you edit a matching file in a project with an enabled plugin, Claude automatically receives the relevant coding guidelines without any manual intervention.
 
 ## Usage Tips
 
@@ -183,14 +198,16 @@ To modify or add plugins:
 
 ```
    plugins/<name>/
-   ├── CLAUDE_.md                  # Context to be automatically injected; lists additional contexts for progressive disclosure
+   ├── CLAUDE_.md                  # SessionStart pointer; lists additional contexts for progressive disclosure
    ├── contexts/
    │   ├── conventions.md          # Coding conventions
-   │   ╰── engineering.md          # Engineering practices (optional)
+   │   ├── engineering.md          # Engineering practices (optional)
+   │   ╰── rules.json              # Declarative trigger→context map for the PreToolUse hook
    ├── hooks/
-   │   ╰── hooks.json              # Hook configuration
+   │   ╰── hooks.json              # Hook configuration (SessionStart + PreToolUse)
    ╰── scripts/
-       ╰── <name>-session-start.py # Hook execution script (unique per plugin)
+       ├── <name>-session-start.py  # SessionStart script (unique name per plugin)
+       ╰── <name>-context-inject.py # PreToolUse injector (unique name, byte-identical content)
 ```
 
 3. After changes, validate:

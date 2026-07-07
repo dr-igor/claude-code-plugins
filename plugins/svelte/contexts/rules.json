@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "context": "contexts/engineering.md",
+      "tools": [
+        "Edit",
+        "Write",
+        "NotebookEdit"
+      ],
+      "extensions": [
+        ".svelte"
+      ],
+      "project_markers": [
+        "package.json"
+      ]
+    }
+  ]
+}

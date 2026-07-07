@@ -8,58 +8,65 @@
   },
   "plugins": [
     {
+      "name": "core-context",
+      "description": "Injects global coding-rule context files when editing code or running commands",
+      "version": "0.1.1",
+      "source": "./plugins/core-context",
+      "category": "development"
+    },
+    {
       "name": "python",
       "description": "Python coding guidelines and best practices",
-      "version": "1.0.6",
+      "version": "1.0.8",
       "source": "./plugins/python",
       "category": "development"
     },
     {
       "name": "typescript",
       "description": "TypeScript coding guidelines and best practices",
-      "version": "1.0.5",
+      "version": "1.0.7",
       "source": "./plugins/typescript",
       "category": "development"
     },
     {
       "name": "svelte",
       "description": "Svelte coding guidelines and best practices",
-      "version": "1.0.0",
+      "version": "1.0.2",
       "source": "./plugins/svelte",
       "category": "development"
     },
     {
       "name": "rust",
       "description": "Rust coding guidelines and best practices",
-      "version": "1.0.5",
+      "version": "1.0.7",
       "source": "./plugins/rust",
       "category": "development"
     },
     {
       "name": "golang",
       "description": "Go coding guidelines and best practices",
-      "version": "1.0.5",
+      "version": "1.0.7",
       "source": "./plugins/golang",
       "category": "development"
     },
     {
       "name": "gha",
       "description": "GitHub Actions workflow guidelines",
-      "version": "1.0.5",
+      "version": "1.0.7",
       "source": "./plugins/gha",
       "category": "ci"
     },
     {
       "name": "fish",
       "description": "Fish shell scripting guidelines",
-      "version": "1.0.5",
+      "version": "1.0.7",
       "source": "./plugins/fish",
       "category": "computer-use"
     },
     {
       "name": "tf",
       "description": "Terraform/OpenTofu infrastructure-as-code guidelines",
-      "version": "1.0.5",
+      "version": "1.0.7",
       "source": "./plugins/tf",
       "category": "infrastructure"
     },

@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "context": "contexts/conventions.md",
+      "tools": [
+        "Edit",
+        "Write",
+        "NotebookEdit"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs",
+        ".mts",
+        ".cts",
+        ".svelte"
+      ]
+    },
+    {
+      "context": "contexts/engineering.md",
+      "tools": [
+        "Edit",
+        "Write",
+        "NotebookEdit"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs",
+        ".mts",
+        ".cts",
+        ".svelte"
+      ],
+      "project_markers": [
+        "package.json",
+        "tsconfig.json",
+        "deno.json"
+      ]
+    }
+  ]
+}

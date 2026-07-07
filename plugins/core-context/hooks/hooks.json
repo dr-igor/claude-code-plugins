@@ -1,0 +1,25 @@
+{
+  "description": "Injects global coding-rule context files when editing code files or running shell commands",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/core-context-inject.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/core-context-inject.py"
+          }
+        ]
+      }
+    ]
+  }
+}

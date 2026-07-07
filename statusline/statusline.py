@@ -241,10 +241,16 @@ def braille_bar_cells(
         segment_index = marker_pos // 2
         indicator = _PER_SEGMENT_INDICATORS[marker_row][marker_pos % 2]
 
-        if invert_overlap:
-            segments[segment_index] ^= indicator
-        else:
-            segments[segment_index] |= indicator
+        try:
+            if invert_overlap:
+                segments[segment_index] ^= indicator
+            else:
+                segments[segment_index] |= indicator
+        except IndexError:
+            logger.warning(
+                f"Marker {marker_row=} {marker_percentage=} {invert_overlap=} "
+                f"out of bounds for segments {segments=};\n{segment_index=} {marker_pos=}"
+            )
 
     return [chr(ord("⠀") | bits) for bits in segments]
 
@@ -252,7 +258,7 @@ def braille_bar_cells(
 def position_from_percentage(
     percentage: float, *, size: int = PROGRESS_BAR_SEGMENTS
 ) -> int:
-    return round(clamp(percentage) * (2 * size / 100))
+    return round(clamp(percentage) * (2 * size - 1) / 100)
 
 
 def clamp(value: float, min_value: float = 0.0, max_value: float = 100.0) -> float:

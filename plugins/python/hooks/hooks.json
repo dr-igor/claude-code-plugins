@@ -1,5 +1,5 @@
 {
-  "description": "Injects language-specific coding guidelines on session start",
+  "description": "Injects language-specific coding guidelines on session start and when editing matching files",
   "hooks": {
     "SessionStart": [
       {
@@ -7,6 +7,17 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/scripts/python-session-start.py"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/python-context-inject.py"
           }
         ]
       }

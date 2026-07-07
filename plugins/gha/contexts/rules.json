@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "context": "contexts/conventions.md",
+      "tools": [
+        "Edit",
+        "Write",
+        "NotebookEdit"
+      ],
+      "path_regex": "(^|/)\\.github/workflows/[^/]+\\.ya?ml$"
+    }
+  ]
+}

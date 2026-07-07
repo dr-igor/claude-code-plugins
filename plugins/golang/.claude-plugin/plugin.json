@@ -1,7 +1,7 @@
 {
   "name": "golang",
   "description": "Go coding guidelines and best practices",
-  "version": "1.0.5",
+  "version": "1.0.7",
   "author": {
     "name": "Igor Petrik"
   }

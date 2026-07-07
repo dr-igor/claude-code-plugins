@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "context": "~/.claude/additional-context/code-fundamentals.md",
+      "tools": ["Edit", "Write", "NotebookEdit"],
+      "extensions": [
+        ".py", ".pyi", ".ipynb",
+        ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts", ".svelte",
+        ".rs", ".go", ".fish", ".sh", ".bash", ".zsh",
+        ".rb", ".java", ".kt", ".kts", ".c", ".h", ".cc", ".cpp", ".hpp",
+        ".cs", ".swift", ".php", ".lua", ".pl", ".sql", ".tf", ".tfvars", ".hcl"
+      ]
+    },
+    {
+      "context": "~/.claude/additional-context/narrative-code-flow.md",
+      "tools": ["Edit", "Write", "NotebookEdit"],
+      "extensions": [
+        ".py", ".pyi", ".ipynb",
+        ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts", ".svelte",
+        ".rs", ".go", ".fish", ".sh", ".bash", ".zsh",
+        ".rb", ".java", ".kt", ".kts", ".c", ".h", ".cc", ".cpp", ".hpp",
+        ".cs", ".swift", ".php", ".lua", ".pl", ".sql", ".tf", ".tfvars", ".hcl"
+      ]
+    },
+    {
+      "context": "~/.claude/additional-context/software-engineering.md",
+      "tools": ["Edit", "Write", "NotebookEdit"],
+      "extensions": [
+        ".py", ".pyi", ".ipynb",
+        ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts", ".svelte",
+        ".rs", ".go", ".fish", ".sh", ".bash", ".zsh",
+        ".rb", ".java", ".kt", ".kts", ".c", ".h", ".cc", ".cpp", ".hpp",
+        ".cs", ".swift", ".php", ".lua", ".pl", ".sql", ".tf", ".tfvars", ".hcl"
+      ],
+      "project_markers": [
+        "package.json", "pyproject.toml", "setup.py", "Cargo.toml", "go.mod",
+        "pom.xml", "build.gradle", "build.gradle.kts", "CMakeLists.txt",
+        "Makefile", "mix.exs", "Gemfile"
+      ]
+    },
+    {
+      "context": "~/.claude/additional-context/terminal-tool-usage.md",
+      "tools": ["Bash"]
+    },
+    {
+      "context": "~/.claude/additional-context/linting.md",
+      "tools": ["Bash"],
+      "command_regex": "\\b(eslint|prettier|ruff|black|isort|mypy|pyright|flake8|pylint|tsc|biome|oxlint|golangci-lint|go vet|gofmt|goimports|cargo (clippy|fmt)|rustfmt|shellcheck|shfmt|stylelint|terraform fmt|tofu fmt|tflint)\\b"
+    }
+  ]
+}

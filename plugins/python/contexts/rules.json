@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "context": "contexts/conventions.md",
+      "tools": ["Edit", "Write", "NotebookEdit"],
+      "extensions": [".py", ".pyi"]
+    },
+    {
+      "context": "contexts/engineering.md",
+      "tools": ["Edit", "Write", "NotebookEdit"],
+      "extensions": [".py", ".pyi"],
+      "project_markers": ["pyproject.toml", "setup.py", "setup.cfg"]
+    }
+  ]
+}

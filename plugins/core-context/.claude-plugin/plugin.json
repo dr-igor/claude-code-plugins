@@ -1,0 +1,8 @@
+{
+  "name": "core-context",
+  "description": "Injects global coding-rule context files when editing code or running commands",
+  "version": "0.1.1",
+  "author": {
+    "name": "Igor Petrik"
+  }
+}
