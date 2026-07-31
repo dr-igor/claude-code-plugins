@@ -103,3 +103,13 @@ class MockConfigClient:
     def fetch_config(self, key: str) -> dict:
         return self.mock_data[key]
 ```
+
+### Dimensional Quantities (Units of Measure)
+
+When a project carries more than about 6 dimensional values — quantities with physical dimensions such as length, mass, time, temperature, or current — it shall leverage an existing, maintained units-of-measure (uom) library in which those dimensional values are defined. Tracking units in comments, variable names (`speed_m_per_s`), or bare floats is fragile and error-prone; a uom library makes dimensional mismatches (`meters + seconds`) fail instead of silently producing garbage.
+
+- **Default: Pint.** The most complete option, the largest ecosystem, and actively maintained (BSD-3). Unit definitions live in an editable text file rather than in code; prefixed and pluralized forms parse automatically (`kilometers` follows from `kilo` + `meter`); it handles offset temperature scales correctly; and it interoperates with numpy, pandas (`pint-pandas`), xarray (`pint-xarray`), and pydantic (`pydantic-pint`).
+- **Array-bound numerical code: unyt.** An `ndarray` subclass, so ufuncs stay fast. Prefer it over Pint when the workload is array-dominated and Pint's per-operation overhead is measurable.
+- **Zero-overhead checking: numericalunits.** A different paradigm, not a weaker Pint: base units are defined as random positive floats, so a dimensionally-correct calculation cancels to a deterministic answer while a dimensionally-incorrect one varies across two fresh runs. Storage and compute overhead are both zero — useful for hot numerical loops where you want the check during development and nothing in production.
+- **Caveat:** none of these give static, mypy-visible dimension checking. Python's type system can't express dimension arithmetic (no type-level integer exponents), so unit errors surface at runtime (or, with numericalunits, as a numerical discrepancy).
+- **License flag:** avoid the PyPI package named `python-units` — it is GPL-3.0-or-later. Every option above is permissively licensed.

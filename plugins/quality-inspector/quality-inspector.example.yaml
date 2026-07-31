@@ -1,0 +1,20 @@
+# quality-inspector config (belphegor inspect mode).
+#
+# Copy to the project root as `quality-inspector.yaml`, or point at it with
+# QUALITY_INSPECTOR_CONFIG. `commands` is required; every other field has a default.
+# Each command must use reconcile: replace | append | merge (never `none` — there is
+# nothing to diff in inspect mode). Emit diff-stable records (e.g. JSON findings without
+# volatile line numbers) so unchanged findings on shifted lines don't look "new".
+
+settle: 15            # debounce window (s) after the last edit before findings are computed
+command_timeout: 120  # per-command run-to-completion timeout (s)
+idle_timeout: 300     # daemon exits after this many seconds of inactivity
+
+commands:
+  # More tools (black, eslint, tsc, svelte-check, prettier, pytest, vitest): see README.md
+  ruff:
+    run: ruff check --output-format=json
+    reconcile: append
+  mypy:
+    run: mypy --no-error-summary
+    reconcile: append

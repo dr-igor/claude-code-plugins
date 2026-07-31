@@ -1,0 +1,8 @@
+{
+  "name": "quality-inspector",
+  "description": "Reports newly-introduced quality findings (linters/type-checkers) around edit bursts, via belphegor",
+  "version": "0.1.0",
+  "author": {
+    "name": "Igor Petrik"
+  }
+}

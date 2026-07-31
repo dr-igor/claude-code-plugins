@@ -22,11 +22,15 @@ from __future__ import annotations
 import json
 import logging
 import re
+import shutil
+import subprocess
 import sys
 from collections.abc import Iterable
 from datetime import datetime, timedelta
-from os import environ
-from typing import Annotated, Literal, TypedDict
+from math import ceil
+from os import X_OK, access, environ
+from pathlib import Path
+from typing import Annotated, Literal, NamedTuple, NotRequired, TypedDict, TypeGuard
 
 import typer
 from rich.console import Console
@@ -60,9 +64,8 @@ def main(
         factory.model_braile()
         + " "
         + factory.thinking_indicator()
-        + "|"
-        + factory.braille_progress()
-        + "|"
+        + factory.mode_bar_block()
+        + factory.inspector()
         + factory.reset_times()
     )
 
@@ -71,6 +74,9 @@ def _setup_logger():
     debug = environ.get("STATUSLINE_DEBUG", "false").lower() == "true"
     if debug:
         logging.basicConfig(filename="statusline.log", level=logging.INFO)
+    else:
+        # So that we don't write to stderr (default)
+        logger.addHandler(logging.NullHandler())
 
 
 class ComponentFactory:
@@ -102,6 +108,22 @@ class ComponentFactory:
         if self.payload["thinking"]["enabled"]:
             return "🤔 "
         return ""
+
+    def mode_bar_block(self) -> Text:
+        style = self.vim_style()
+        if style is None:
+            return Text("|") + self.braille_progress() + Text("|")
+
+        block = Text(style=f"on {style.background}")
+        block.append(f" {style.letter} ", style=f"bold {style.foreground}")
+        block.append("|")
+        block.append_text(self.braille_progress())
+        block.append("|")
+        return block
+
+    def vim_style(self) -> VimModeStyle | None:
+        mode = self.payload.get("vim", {}).get("mode", "")
+        return VIM_MODE_STYLES.get(VIM_MODE_ALIASES.get(mode, mode))
 
     def braille_progress(self) -> Text:
         # Top to bottom: 5h rate limit, 7d rate limit, context window, cost.
@@ -148,6 +170,15 @@ class ComponentFactory:
         ):
             text.append(cell, style=braille_bar_color(i))
         return text
+
+    def inspector(self) -> Text:
+        # Unlike every other cell, this one depends on an external process and the
+        # filesystem. A quality-inspection hiccup must never cost the whole status line.
+        try:
+            return render_inspector(query_inspector(self.payload))
+        except Exception:
+            logger.warning("inspector cell failed", exc_info=True)
+            return Text()
 
     def reset_times(self) -> Text:
         rate_limits = self.payload.get("rate_limits", {})
@@ -205,8 +236,23 @@ def total_rank_to_color(total_rank: int) -> str:
     elif total_rank <= 6:
         return "yellow"
     elif total_rank <= 8:
-        return "orange"
+        return "orange1"
     return "red"
+
+
+class VimModeStyle(NamedTuple):
+    letter: str
+    foreground: str
+    background: str
+
+
+VIM_MODE_STYLES = {
+    "NORMAL": VimModeStyle("N", "#7aa2f7", "#1c2e4a"),
+    "INSERT": VimModeStyle("I", "#9ece6a", "#16351f"),
+    "VISUAL": VimModeStyle("V", "#bb9af7", "#2e1f3d"),
+}
+
+VIM_MODE_ALIASES = {"VISUAL LINE": "VISUAL"}
 
 
 def _pct(value: float | None) -> float:
@@ -274,6 +320,167 @@ def braille_bar_color(cell_index: int, *, size: int = PROGRESS_BAR_SEGMENTS) -> 
     return "green"
 
 
+def query_inspector(payload: Payload) -> InspectorState | None:
+    config = resolve_inspector_config(payload)
+    bin_path = resolve_inspector_bin()
+    if bin_path is None or not config.is_file():
+        return None
+
+    # The socket identity hashes the link-resolved config path alongside its content,
+    # so this must resolve exactly as the hook's `str(config.resolve())` does or we
+    # look for a different daemon than the one the hooks dispatch to.
+    command = [bin_path, "status", str(config.resolve())]
+    if session_id := payload.get("session_id"):
+        command += ["--session", session_id]
+    command.append("--status-server")
+
+    try:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            stdin=subprocess.DEVNULL,
+            timeout=INSPECTOR_STATUS_TIMEOUT,
+            check=False,
+        )
+        return reduce_inspector_status(json.loads(completed.stdout))
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        logger.warning(f"belphegor status failed: {error!r}")
+        return InspectorState()
+
+
+def resolve_inspector_config(payload: Payload) -> Path:
+    if override := environ.get(INSPECTOR_CONFIG_ENV):
+        return Path(override).expanduser()
+    return Path(payload.get("cwd") or Path.cwd()) / INSPECTOR_CONFIG_NAME
+
+
+def resolve_inspector_bin() -> str | None:
+    override = environ.get(INSPECTOR_BIN_ENV)
+    if override and access(override, X_OK):
+        return override
+    return shutil.which("belphegor")
+
+
+def reduce_inspector_status(raw: InspectorStatus) -> InspectorState:
+    if not raw.get("running"):
+        return InspectorState()
+    if raw.get("error"):
+        return InspectorState(is_reachable=True)
+
+    status_url = resolve_inspector_url(raw)
+    session = next((s for s in raw.get("sessions", []) if is_full_session(s)), None)
+    if session is None:
+        return InspectorState(is_reachable=True, is_usable=True, status_url=status_url)
+
+    last_result = session.get("last_result")
+    return InspectorState(
+        is_reachable=True,
+        is_usable=True,
+        is_seen=True,
+        phase=session.get("phase", ""),
+        resolving=int(session.get("resolving") or 0),
+        settle_remaining=session.get("settle_remaining"),
+        result="" if last_result is None else last_result.get("status", ""),
+        findings=(
+            0 if last_result is None else int(last_result.get("message_count") or 0)
+        ),
+        status_url=status_url,
+    )
+
+
+def resolve_inspector_url(raw: InspectorStatus) -> str:
+    # A dashboard that cannot start never costs the status answer: belphegor reports it
+    # beside the usual fields and still exits 0, so this only ever suppresses the link.
+    if error := raw.get("status_server_error"):
+        logger.warning(f"belphegor status server unavailable: {error}")
+    url = raw.get("status_url")
+    return url if isinstance(url, str) else ""
+
+
+def is_full_session(entry: InspectorSession) -> TypeGuard[InspectorSessionStatus]:
+    return entry.get("detail") == "full"
+
+
+def render_inspector(state: InspectorState | None) -> Text:
+    if state is None:
+        return Text()
+    return inspector_cell(state) + inspector_link(state.status_url)
+
+
+def inspector_cell(state: InspectorState) -> Text:
+    if not state.is_reachable:
+        return Text(" ○", style="dim")
+    if not state.is_usable:
+        return Text(" ○?", style="dim")
+    if not state.is_seen:
+        return Text(" ●", style="dim")
+    if state.phase == "priming":
+        return Text(" ●⇣", style="yellow")
+
+    activity = inspector_activity(state)
+    outcome = inspector_outcome(state)
+
+    text = Text(" ")
+    text.append("●", style="yellow" if activity else "red" if outcome else "green")
+    if activity:
+        text.append(activity, style="yellow")
+    if outcome:
+        text.append(outcome, style="red")
+    return text
+
+
+def inspector_link(url: str) -> Text:
+    if not url:
+        return Text()
+    return Text(f" {url}", style=f"dim link {url}")
+
+
+def inspector_activity(state: InspectorState) -> str:
+    if state.resolving:
+        return f"⟳{_capped(state.resolving)}"
+    if state.phase == "armed":
+        return f"⟳{_capped(ceil(state.settle_remaining or 0))}s"
+    return ""
+
+
+def inspector_outcome(state: InspectorState) -> str:
+    if state.result == "messages":
+        return f"✗{_capped(state.findings)}"
+    if state.result == "failed":
+        return "!"
+    return ""
+
+
+def _capped(count: int) -> int:
+    return min(count, INSPECTOR_COUNT_CEILING)
+
+
+INSPECTOR_CONFIG_ENV = "QUALITY_INSPECTOR_CONFIG"
+INSPECTOR_BIN_ENV = "BELPHEGOR_BIN"
+INSPECTOR_CONFIG_NAME = "quality-inspector.yaml"
+# Measured round trip is ~155ms, almost entirely belphegor's interpreter startup rather
+# than the socket read. A timeout renders as "daemon down", so the cap is set well clear
+# of that floor: a loaded machine must not make a live daemon look dead. `--status-server`
+# adds a second connect, and the very first one also binds a loopback port and starts the
+# dashboard's HTTP runner before it can answer -- unmeasured here, since a daemon cannot
+# be spawned in this sandbox.
+INSPECTOR_STATUS_TIMEOUT = 1.0
+INSPECTOR_COUNT_CEILING = 99
+
+
+class InspectorState(NamedTuple):
+    is_reachable: bool = False
+    is_usable: bool = False
+    is_seen: bool = False
+    phase: str = ""
+    resolving: int = 0
+    settle_remaining: float | None = None
+    result: str = ""
+    findings: int = 0
+    status_url: str = ""
+
+
 class Payload(TypedDict):
     version: str
     session_id: str
@@ -286,7 +493,7 @@ class Payload(TypedDict):
     cost: Cost
     context_window: ContextWindow
     rate_limits: RateLimits
-    vim: Vim
+    vim: NotRequired[Vim]
 
 
 class Model(TypedDict):
@@ -295,13 +502,7 @@ class Model(TypedDict):
 
 
 class Effort(TypedDict):
-    level: (
-        Literal["low"]
-        | Literal["medium"]
-        | Literal["high"]
-        | Literal["xhigh"]
-        | Literal["max"]
-    )
+    level: Literal["low", "medium", "high", "xhigh", "max"]
 
 
 class Repo(TypedDict):
@@ -314,7 +515,7 @@ class Workspace(TypedDict):
     repo: Repo
 
 
-class Thinking(Workspace):
+class Thinking(TypedDict):
     enabled: bool
 
 
@@ -346,7 +547,62 @@ class ContextWindow(TypedDict):
 
 
 class Vim(TypedDict):
-    mode: Literal["INSERT"] | Literal["NORMAL"] | Literal["VISUAL"] | Literal["REPLACE"]
+    mode: Literal["NORMAL", "INSERT", "VISUAL", "VISUAL LINE"]
+
+
+class InspectorStatus(TypedDict):
+    v: int
+    running: bool
+    type: NotRequired[str]
+    error: NotRequired[str]
+    daemon: NotRequired[InspectorDaemon]
+    sessions: NotRequired[list[InspectorSession]]
+    status_url: NotRequired[str]
+    status_server_error: NotRequired[str]
+
+
+class InspectorDaemon(TypedDict):
+    mode: str
+    pid: int
+    version: str
+    config_path: str
+    socket_path: str
+    uptime: float
+    idle_timeout: float
+    idle_shutdown_in: float
+    settle: float
+    command_timeout: float
+    commands: list[str]
+    waiting_clients: int
+
+
+class InspectorSessionStatus(TypedDict):
+    detail: Literal["full"]
+    session_id: str
+    # Reported verbatim from the daemon's phase enum, so treat the set as open:
+    # idle | priming | no_listener | allow_reprime | armed.
+    phase: str
+    settle_remaining: float | None
+    baseline: bool
+    resolving: int
+    queued: int
+    last_event_age: float | None
+    last_result: InspectorResult | None
+
+
+class InspectorSessionRef(TypedDict):
+    detail: Literal["id"]
+    session_id: str
+
+
+class InspectorResult(TypedDict):
+    status: Literal["ok", "messages", "failed"]
+    age: float
+    message_count: NotRequired[int]
+    error: NotRequired[str]
+
+
+InspectorSession = InspectorSessionStatus | InspectorSessionRef
 
 
 if __name__ == "__main__":

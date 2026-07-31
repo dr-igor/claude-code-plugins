@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "contexts": [
+    {
+      "id": "code-fundamentals",
+      "path": "~/.claude/additional-context/code-fundamentals.md",
+      "description": "Fundamental rules for all code generation: readability, intent-revealing naming, declarative-over-imperative style, resource cleanup, async-first concurrency. Relevant to any task that writes or designs code."
+    },
+    {
+      "id": "software-engineering",
+      "path": "~/.claude/additional-context/software-engineering.md",
+      "description": "Required engineering practices for moderately sized or complex codebases: data modeling, tests, external-data ingestion, error/exception handling, cross-system integration, installable/deployable packages."
+    },
+    {
+      "id": "linting",
+      "path": "~/.claude/additional-context/linting.md",
+      "description": "Required practices for addressing linting, type-checking, and formatting issues. Relevant when the plan touches lint/type/format tooling or fixing such findings."
+    },
+    {
+      "id": "terminal-tool-usage",
+      "path": "~/.claude/additional-context/terminal-tool-usage.md",
+      "description": "How to effectively run shell/terminal commands, virtualenvs, and output piping. Relevant when the plan involves running commands, scripts, or CLI tools."
+    },
+    {
+      "id": "narrative-code-flow",
+      "path": "~/.claude/additional-context/narrative-code-flow.md",
+      "description": "Structuring code so its control flow reads as a top-down narrative. Relevant when the plan authors or substantially restructures non-trivial code."
+    }
+  ]
+}

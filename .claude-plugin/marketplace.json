@@ -72,8 +72,8 @@
     },
     {
       "name": "planning",
-      "description": "Skills for planning",
-      "version": "1.0.0",
+      "description": "Plan-mode support: interrogation skill, UML-anchored plan document conventions, and PDF export of the approved plan",
+      "version": "1.1.0",
       "source": "./plugins/planning",
       "category": "productivity"
     },
@@ -106,6 +106,27 @@
         "design"
       ],
       "category": "document-creation"
+    },
+    {
+      "name": "quality-inspector",
+      "description": "Reports newly-introduced quality findings around edit bursts, via belphegor",
+      "version": "0.1.0",
+      "source": "./plugins/quality-inspector",
+      "category": "development"
+    },
+    {
+      "name": "plan-review",
+      "description": "Preloads relevant context into the Plan subagent and reviews plans against your conventions before exit",
+      "version": "0.1.0",
+      "source": "./plugins/plan-review",
+      "category": "productivity"
+    },
+    {
+      "name": "away-mode",
+      "description": "Auto-denies every permission prompt with a standing away-from-keyboard message, so Claude keeps working within auto-allowed tools instead of stalling",
+      "version": "0.1.0",
+      "source": "./plugins/away-mode",
+      "category": "productivity"
     }
   ]
 }

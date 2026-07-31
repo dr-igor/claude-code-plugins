@@ -211,3 +211,14 @@ async function storageGet<T extends Record<string, unknown>>(
   return chrome.storage.local.get(keys) as Promise<T>;
 }
 ```
+
+### Dimensional Quantities (Units of Measure)
+
+When a project carries more than about 6 dimensional values — quantities with physical dimensions such as length, mass, time, temperature, or current — it shall leverage an existing, maintained units-of-measure (uom) library in which those dimensional values are defined. Tracking units in comments, variable names, or bare `number`s is fragile and error-prone. Unlike Python, TypeScript can encode dimensions in the type system, so a uom library can catch `meters + seconds` at compile time.
+
+- **Runtime (default): unitmath.** Apache-2.0. Immutable units; a `simplify` method that collapses derived units under a chosen system (e.g. `10 / s` to `10 Hz`, `8 kg m / s^2` to `8 N`); and custom numeric types by replacing the internal arithmetic operators. The best runtime-only choice.
+- **Already using mathjs: use its `Unit`.** Apache-2.0, and by far the best-maintained option. If mathjs is already a dependency, use it rather than adding a second library; it's overkill to add solely for units.
+- **Compile-time dimension safety: `@buge/ts-units`.** Apache-2.0. Encodes dimension exponents in the type system, with per-quantity module imports (which keep bundles small) and a pluggable numeric backing type. Check recent commit activity before adopting, as releases have slowed.
+- **Trade-off:** type-level libraries produce large, slow-to-check types and error messages that name generic parameters rather than "you added meters to seconds." For an app with a handful of unit-bearing values at the boundaries, a runtime library plus tests is usually the better ergonomics/safety trade. For a simulation or engineering core where every value is dimensioned, the compile-time cost pays for itself.
+- **Watch: unitforge.** MIT and the most actively developed (a 2026 release, CI/coverage/OpenSSF badges), but a single maintainer and unproven adoption — treat it as promising rather than safe.
+- **Cross-language exchange:** if TypeScript and Python in the same system exchange quantities, don't try to match library semantics — serialize as `{ value: number, unit: string }` with unit strings drawn from one authority (Pint's definitions, or UCUM as a standard) and parse on each side. Both unitmath and Pint accept string unit expressions, so the round-trip is clean.

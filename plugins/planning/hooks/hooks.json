@@ -1,0 +1,27 @@
+{
+  "description": "Guides plan documents toward human-readable UML-anchored structure, and renders the plan to PDF on exit",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/planning-plan-conventions.py"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/planning-plan-to-pdf.py",
+            "timeout": 180
+          }
+        ]
+      }
+    ]
+  }
+}

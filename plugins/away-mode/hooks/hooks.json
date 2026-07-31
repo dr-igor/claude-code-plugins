@@ -1,0 +1,16 @@
+{
+  "description": "While enabled, auto-denies every permission prompt with a standing away-from-keyboard message, and logs what was blocked",
+  "hooks": {
+    "PermissionRequest": [
+      {
+        "matcher": "^(?!(ExitPlanMode|AskUserQuestion)$).*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/away-mode-deny.py"
+          }
+        ]
+      }
+    ]
+  }
+}

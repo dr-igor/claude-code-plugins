@@ -1,0 +1,8 @@
+{
+  "name": "away-mode",
+  "description": "Auto-denies every permission prompt with a standing away-from-keyboard message, so Claude keeps working within auto-allowed tools instead of stalling",
+  "version": "0.1.0",
+  "author": {
+    "name": "Igor Petrik"
+  }
+}
