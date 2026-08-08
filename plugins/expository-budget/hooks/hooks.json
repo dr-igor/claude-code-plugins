@@ -1,0 +1,43 @@
+{
+  "description": "Records a per-file ceiling on comments and docstrings at session start, rescans the whole worktree after every edit and shell command to refuse anything over it, and lowers it as prose is removed",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/expository-budget-session-start.py",
+            "timeout": 120,
+            "statusMessage": "Recording the expository-content budget"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/expository-budget-guard.py",
+            "timeout": 10,
+            "statusMessage": "Guarding the expository-content budget"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/expository-budget-check.py",
+            "timeout": 120,
+            "statusMessage": "Checking the expository-content budget"
+          }
+        ]
+      }
+    ]
+  }
+}

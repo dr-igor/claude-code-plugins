@@ -127,6 +127,13 @@
       "version": "0.1.0",
       "source": "./plugins/away-mode",
       "category": "productivity"
+    },
+    {
+      "name": "expository-budget",
+      "description": "Holds every code file to a per-file ceiling on comments and docstrings; the ceiling falls as prose is removed and only you can raise it",
+      "version": "0.1.0",
+      "source": "./plugins/expository-budget",
+      "category": "development"
     }
   ]
 }

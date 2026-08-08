@@ -2,6 +2,10 @@
 
 Personal marketplace for Claude Code plugins that inject language-specific coding guidelines into your development sessions.
 
+> DISCLAIMER: This is all maintained for my own personal benefit. I am sharing it in case others find some aspect of it useful, but it is not intended to be directly consumable by anyone else.
+>
+> The project does not accept contributions; if you want something changed for personal use, you are more than welcome to fork it and modify to your own needs.
+
 ## Overview
 
 This marketplace provides plugins that automatically inject best practices and coding guidelines whenever you work on projects in specific languages. Each plugin uses two complementary hooks:

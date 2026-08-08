@@ -1,0 +1,8 @@
+{
+  "name": "expository-budget",
+  "description": "Holds every code file to a per-file ceiling on comments and docstrings, ratcheting the ceiling down as prose is removed",
+  "version": "0.1.0",
+  "author": {
+    "name": "Igor Petrik"
+  }
+}
