@@ -26,6 +26,7 @@ import tempfile
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 
 PREFIX = "cc-plugins-igorlabworks/planning"
@@ -36,13 +37,35 @@ PANDOC_ENV = "PLANNING_PANDOC_BIN"
 FILTER_ENV = "PLANNING_PLANTUML_FILTER"
 ENGINE_ENV = "PLANNING_PDF_ENGINE"
 PLANTUML_ENV = "PLANTUML_BIN"
+DIAGRAM_DPI_ENV = "PLANNING_DIAGRAM_DPI"
+DIAGRAM_MAX_HEIGHT_ENV = "PLANNING_DIAGRAM_MAX_HEIGHT_IN"
+WRAP_ENV = "PLANNING_PDF_WRAP"
 
 PDF_ENGINE_CANDIDATES = ("typst", "xelatex", "lualatex", "pdflatex", "weasyprint", "wkhtmltopdf")
 LATEX_ENGINES = frozenset({"xelatex", "lualatex", "pdflatex", "tectonic", "latexmk"})
 
+PLUGIN_ROOT = Path(__file__).resolve().parents[1]
+LAYOUT_FILTER = PLUGIN_ROOT / "filters" / "plan-diagram-layout.lua"
+LATEX_HEADER = PLUGIN_ROOT / "assets" / "plan-header.tex"
+WRAPFIG_PACKAGE = "wrapfig"
+
+PLANTUML_DPI = 200
+PLANTUML_FONT_PT = 13
+BODY_FONT_PT = 10
+MAX_WIDTH_IN = 6.5
+MAX_HEIGHT_IN = 6.0
+WRAP_MAX_WIDTH_IN = 3.0
+WRAP_MAX_HEIGHT_IN = 3.5
+
 # -failfast2 is load-bearing: without it PlantUML draws the syntax error into the image
 # and exits 0, so a broken diagram would sail through into the PDF unnoticed.
-PLANTUML_FLAGS = ("-failfast2", "-Sdpi=200")
+FAILFAST_FLAG = "-failfast2"
+PLANTUML_FLAGS = (
+    FAILFAST_FLAG,
+    f"-Sdpi={PLANTUML_DPI}",
+    f"-SdefaultFontSize={PLANTUML_FONT_PT}",
+)
+PLANTUML_FLAGS_WITHOUT_FAILFAST = tuple(flag for flag in PLANTUML_FLAGS if flag != FAILFAST_FLAG)
 
 
 class ToolchainMissing(Exception):
@@ -158,7 +181,13 @@ def render(source: Path, destination: Path, *, workspace: Path) -> None:
     toolchain = resolve_toolchain()
     result = run_pandoc(toolchain, source, destination, workspace=workspace)
     if result.returncode != 0 and "failfast" in result.stderr:
-        result = run_pandoc(toolchain, source, destination, workspace=workspace, plantuml_flags=())
+        result = run_pandoc(
+            toolchain,
+            source,
+            destination,
+            workspace=workspace,
+            plantuml_flags=PLANTUML_FLAGS_WITHOUT_FAILFAST,
+        )
     if result.returncode != 0:
         destination.unlink(missing_ok=True)
         raise RenderFailed(build_report(source, result.stderr))
@@ -211,6 +240,42 @@ def resolve_pdf_engine() -> str:
     raise ToolchainMissing("a PDF engine", "brew install typst")
 
 
+def environment_float(name: str, fallback: float) -> float:
+    try:
+        return float(os.environ[name])
+    except (KeyError, ValueError):
+        return fallback
+
+
+def placement_dpi() -> float:
+    return environment_float(DIAGRAM_DPI_ENV, PLANTUML_DPI * PLANTUML_FONT_PT / BODY_FONT_PT)
+
+
+@cache
+def wrapfig_installed() -> bool:
+    if not shutil.which("kpsewhich"):
+        return False
+    probe = subprocess.run(["kpsewhich", f"{WRAPFIG_PACKAGE}.sty"], capture_output=True)
+    return probe.returncode == 0
+
+
+def text_flow_enabled(*, latex: bool) -> bool:
+    return latex and os.environ.get(WRAP_ENV, "1") != "0" and wrapfig_installed()
+
+
+def diagram_metadata(*, latex: bool) -> list[str]:
+    settings = {
+        "diagram-dpi": f"{placement_dpi():.4f}",
+        "diagram-max-width-in": f"{MAX_WIDTH_IN}",
+        "diagram-max-height-in": f"{environment_float(DIAGRAM_MAX_HEIGHT_ENV, MAX_HEIGHT_IN)}",
+        "diagram-wrap-max-width-in": f"{WRAP_MAX_WIDTH_IN}",
+        "diagram-wrap-max-height-in": f"{WRAP_MAX_HEIGHT_IN}",
+        "diagram-wrap": "1" if text_flow_enabled(latex=latex) else "0",
+        "diagram-latex": "1" if latex else "0",
+    }
+    return [item for pair in settings.items() for item in ("-M", "=".join(pair))]
+
+
 def run_pandoc(
     toolchain: Toolchain,
     source: Path,
@@ -219,6 +284,7 @@ def run_pandoc(
     workspace: Path,
     plantuml_flags: Sequence[str] = PLANTUML_FLAGS,
 ) -> subprocess.CompletedProcess[str]:
+    latex = Path(toolchain.pdf_engine).name in LATEX_ENGINES
     command = [
         toolchain.pandoc,
         str(source),
@@ -226,15 +292,20 @@ def run_pandoc(
         str(destination),
         "--filter",
         toolchain.plantuml_filter,
+        "--lua-filter",
+        str(LAYOUT_FILTER),
         "--pdf-engine",
         toolchain.pdf_engine,
         "--toc",
         "--number-sections",
         "--resource-path",
         os.pathsep.join([str(workspace), str(source.parent)]),
+        *diagram_metadata(latex=latex),
     ]
-    if Path(toolchain.pdf_engine).name in LATEX_ENGINES:
-        command += ["-V", "geometry:margin=1in"]
+    if latex:
+        command += ["-V", "geometry:margin=1in", "-V", f"fontsize={BODY_FONT_PT}pt"]
+    if text_flow_enabled(latex=latex):
+        command += ["--include-in-header", str(LATEX_HEADER)]
 
     # The filter writes its images to plantuml-images/ relative to the process cwd, so
     # pandoc runs inside the workspace and the whole directory is discarded afterwards.

@@ -50,8 +50,15 @@ Pick the diagram kind that matches what you are explaining:
 | How an entity moves between modes | state diagram                    |
 | How a process or job runs         | activity diagram                 |
 
-Prefer several small diagrams over one large one. A diagram that needs more than roughly a page will
-be illegible once scaled into the PDF.
+Prefer several small diagrams over one large one, and watch the **shape** rather than the size. Each
+diagram is placed at the width that makes its labels match the body text, then capped at the line
+width and at two thirds of the page height — so it is aspect ratio, not element count, that costs
+legibility. A diagram wider than about 4:1 hits the width cap, and one taller than about 1:2 hits the
+height cap; either way its text is scaled below the surrounding prose.
+
+Both are avoidable. A wide diagram is usually a chain that reads just as well broken in two. A tall
+one is usually an activity diagram whose branches each deserve their own figure. Splitting is the
+only remedy — there is no zoom setting that recovers a 4:1 diagram.
 
 ## Current state, and the delta
 

@@ -29,6 +29,8 @@ Four pieces have to be present. None of them is bundled with the plugin, and if 
 
 `graphviz` is a fifth, softer requirement: PlantUML shells out to its `dot` binary for class, component, state and deployment diagrams. Sequence and activity diagrams render without it.
 
+The LaTeX package `wrapfig` is a sixth, softer still: with it present, a diagram narrow enough to leave a usable text column has the prose that explains it flow alongside rather than below. The hook probes for it with `kpsewhich` and simply centres every diagram if it is absent. Install it with `sudo tlmgr install wrapfig`, or `tlmgr install --usermode wrapfig` into your own tree.
+
 Work through the steps below in order; each ends with a command that confirms it.
 
 ### 1. pandoc and graphviz
@@ -171,7 +173,24 @@ Next to the plan Markdown, same filename with a `.pdf` extension — so in pract
 - `PLANNING_PANDOC_BIN` — path to `pandoc` (default: found on `PATH`).
 - `PLANNING_PLANTUML_FILTER` — path to `pandoc-plantuml` (default: found on `PATH`).
 - `PLANNING_PDF_ENGINE` — force a specific engine instead of autodetecting.
-- `PLANTUML_BIN` — the filter's own variable, honored here too. Set it to a full command such as `java -jar /opt/plantuml.jar`; the hook appends `-failfast2 -Sdpi=200` to whatever you set.
+- `PLANTUML_BIN` — the filter's own variable, honored here too. Set it to a full command such as `java -jar /opt/plantuml.jar`; the hook appends `-failfast2 -Sdpi=200 -SdefaultFontSize=13` to whatever you set.
+- `PLANNING_DIAGRAM_DPI` — the resolution each diagram is placed at (default: 260). Raise it to shrink every diagram, lower it to enlarge. See [Diagram sizing](#diagram-sizing).
+- `PLANNING_DIAGRAM_MAX_HEIGHT_IN` — the height no diagram may exceed, in inches (default: 6.0, against a 9 inch text block).
+- `PLANNING_PDF_WRAP=0` — centre every diagram instead of flowing prose beside the narrow ones.
+
+## Diagram sizing
+
+A diagram is placed at the width that makes **its own label text the same point size as the body text of the PDF**, rather than at whatever size the PDF engine guesses from the pixel count.
+
+That is possible because both halves of the conversion are pinned. PlantUML is invoked with `-Sdpi=200 -SdefaultFontSize=13`, so a label glyph is always `13 x 200 / 72` pixels tall. A PNG of `W` pixels placed at `W_in` inches therefore renders that glyph at `13 x 200 x W_in / W` points, and setting that equal to the 10pt body size gives
+
+```
+W_in = W_px x 10 / (200 x 13)
+```
+
+which is placement at 260 dpi — the `PLANNING_DIAGRAM_DPI` default. The Lua filter `filters/plan-diagram-layout.lua` reads each PNG's dimensions out of its IHDR header and writes that width onto the image, then caps it at the line width and at `PLANNING_DIAGRAM_MAX_HEIGHT_IN`.
+
+The caps are where a diagram loses legibility, and they are hit by shape, not by size: anything wider than about 4:1 or taller than about 1:2 is scaled below body text size no matter how simple it is. Splitting such a diagram is the only fix. `pdfimages -list <plan>.pdf` reports the placed resolution of every diagram, and any row not reading 260 is one that hit a cap.
 
 ## Failure behavior
 
