@@ -123,8 +123,8 @@
     },
     {
       "name": "away-mode",
-      "description": "Auto-denies every permission prompt with a standing away-from-keyboard message, so Claude keeps working within auto-allowed tools instead of stalling",
-      "version": "0.1.0",
+      "description": "Denies permission prompts while you are away so Claude keeps working instead of stalling, switched per session with /away, /here and /auto, or left to a locked screen and window focus to decide",
+      "version": "0.2.0",
       "source": "./plugins/away-mode",
       "category": "productivity"
     },

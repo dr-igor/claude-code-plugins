@@ -1,27 +1,34 @@
 #!/usr/bin/env python3
-"""PermissionRequest hook: auto-deny every permission prompt while the user is away.
+"""PermissionRequest hook: deny permission prompts while a session is unattended.
 
 ``PermissionRequest`` fires only when a permission dialog is about to be shown, so this
-hook sees exactly the calls that would have blocked on the user — auto-allowed tools
-(reads, read-only Bash, anything matching an allow rule) never reach it. Each denial
-carries a standing message telling Claude to continue within the tools it already has,
-and ``interrupt`` is left unset so Claude keeps working rather than stopping.
+hook sees exactly the calls that would have blocked on the user -- auto-allowed tools
+(reads, read-only Bash, anything matching an allow rule) never reach it. Whether a call is
+denied is decided per session, at the moment the prompt appears, by ``away_mode_state``:
+``away`` denies, ``here`` passes through, and ``auto`` denies only on positive evidence
+that the user is absent. Because this script is spawned fresh for every event, a mode
+change takes effect on the very next prompt, mid-turn.
+
+Each denial carries a standing message telling Claude to continue within the tools it
+already has, and ``interrupt`` is left unset so Claude keeps working rather than stopping.
 
 ``ExitPlanMode`` and ``AskUserQuestion`` are exempt: the hook's matcher in ``hooks.json``
-excludes them, so plan approval and direct questions still prompt and wait for the user
-rather than being auto-denied.
+excludes them, so plan approval and direct questions still prompt and wait for the user.
 
 The dialog's "always allow" options arrive as ``permission_suggestions``. They are not
-forwarded to Claude — they are appended to a denial log for the user to review later.
+forwarded to Claude -- they are appended to a denial log for the user to review later.
 
 Fails open: on any unexpected error the hook exits 0, which shows the prompt as it would
-have appeared without the plugin. A hook bug must never silently deny work.
+have appeared without the plugin. A hook bug must never silently deny work -- which now
+matters more, because a mode exists that can deny without having been asked to.
 """
 import json
 import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+from away_mode_state import increment_denials, resolve_decision
 
 LOG_ENV = "AWAY_MODE_LOG"
 DEFAULT_LOG = Path.home() / ".claude" / "away-mode" / "denials.jsonl"
@@ -39,9 +46,27 @@ DENIAL_MESSAGE = (
 )
 
 
-def resolve_log():
-    override = os.environ.get(LOG_ENV)
-    return Path(override).expanduser() if override else DEFAULT_LOG
+def main():
+    try:
+        data = json.load(sys.stdin)
+        session_id = data.get("session_id") or ""
+        if resolve_decision(session_id, now=datetime.now(timezone.utc)) == "ask":
+            print(json.dumps(passthrough()))
+            return
+        record_denial(data)
+        increment_denials(session_id)
+        print(json.dumps(denial(data.get("tool_name") or "tool")))
+    except Exception:
+        sys.exit(0)
+
+
+def passthrough():
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PermissionRequest",
+            "decision": {"behavior": "ask"},
+        }
+    }
 
 
 def record_denial(data):
@@ -63,27 +88,22 @@ def record_denial(data):
         pass
 
 
-def main():
-    try:
-        data = json.load(sys.stdin)
-        record_denial(data)
-        tool_name = data.get("tool_name") or "tool"
-        print(
-            json.dumps(
-                {
-                    "systemMessage": f"{PREFIX}: denied {tool_name} (away mode).",
-                    "hookSpecificOutput": {
-                        "hookEventName": "PermissionRequest",
-                        "decision": {
-                            "behavior": "deny",
-                            "message": DENIAL_MESSAGE,
-                        },
-                    },
-                }
-            )
-        )
-    except Exception:
-        sys.exit(0)
+def resolve_log():
+    override = os.environ.get(LOG_ENV)
+    return Path(override).expanduser() if override else DEFAULT_LOG
+
+
+def denial(tool_name):
+    return {
+        "systemMessage": f"{PREFIX}: denied {tool_name} (away mode).",
+        "hookSpecificOutput": {
+            "hookEventName": "PermissionRequest",
+            "decision": {
+                "behavior": "deny",
+                "message": DENIAL_MESSAGE,
+            },
+        },
+    }
 
 
 if __name__ == "__main__":
