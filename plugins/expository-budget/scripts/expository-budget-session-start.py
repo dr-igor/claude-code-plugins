@@ -10,7 +10,9 @@ from pathlib import Path
 
 from expository_scan import (
     BUDGET_NAME,
+    Budget,
     counts_for_tree,
+    excludes_of,
     load_budget,
     overruns,
     repo_root,
@@ -37,17 +39,20 @@ def report(event: dict[str, object]) -> None:
     if root is None:
         return
     budget_path = project / ".claude" / BUDGET_NAME
-    counts = counts_for_tree(root)
     recorded = load_budget(budget_path)
-    ceilings = next_ceilings(counts, recorded, source=str(event.get("source") or ""))
-    if ceilings != recorded:
-        write_budget(budget_path, ceilings)
+    counts = counts_for_tree(root, excludes_of(recorded))
+    updated = Budget(
+        next_ceilings(counts, recorded, source=str(event.get("source") or "")),
+        excludes_of(recorded),
+    )
+    if updated != recorded:
+        write_budget(budget_path, updated)
     print(
         json.dumps(
             {
                 "hookSpecificOutput": {
                     "hookEventName": "SessionStart",
-                    "additionalContext": briefing(counts, ceilings, budget_path),
+                    "additionalContext": briefing(counts, updated.ceilings, budget_path),
                 }
             }
         )
@@ -60,13 +65,13 @@ def project_dir(event: dict[str, object]) -> Path:
 
 
 def next_ceilings(
-    counts: dict[str, int], recorded: dict[str, int] | None, *, source: str
+    counts: dict[str, int], recorded: Budget | None, *, source: str
 ) -> dict[str, int]:
     if recorded is None or source in ABSORBING_SOURCES:
         return counts
     return {
         name: min(allowed, counts[name])
-        for name, allowed in recorded.items()
+        for name, allowed in recorded.ceilings.items()
         if name in counts
     }
 

@@ -14,12 +14,16 @@ from typing import Literal, NamedTuple
 
 BUDGET_NAME = "expository-content-budget.json"
 BANNER = "READ-THIS-FIRST"
+EXCLUDE = "EXCLUDE"
+RESERVED_KEYS = frozenset({BANNER, EXCLUDE})
 BANNER_TEXT = (
     "A per-file ceiling on comment blocks, block comments and docstrings. Claude Code "
     "cannot edit this file and nothing it runs will raise a number here; only you can. "
     "If a hook is refusing an edit, the fix is to remove the prose - express it in the "
     "code, in a decision record, or in the commit message - unless you judge the comment "
-    "has earned its place, in which case raise its number here by hand."
+    "has earned its place, in which case raise its number here by hand. Files you never "
+    "want counted go in EXCLUDE as gitignore-style patterns - vendor/, src/generated/**, "
+    "*.pb.go - and their entries disappear from this file."
 )
 MAX_SCANNED_BYTES = 2_000_000
 
@@ -32,8 +36,10 @@ class Span(NamedTuple):
     kind: Kind
 
 
-def counts_for_tree(root: Path) -> dict[str, int]:
-    counted = ((name, count_in(root, name)) for name in working_tree_files(root))
+def counts_for_tree(root: Path, excludes: Iterable[str]) -> dict[str, int]:
+    rules = exclude_rules(excludes)
+    included = (name for name in working_tree_files(root) if not is_excluded(name, rules))
+    counted = ((name, count_in(root, name)) for name in included)
     return {name: count for name, count in counted if count}
 
 
@@ -46,6 +52,67 @@ def working_tree_files(root: Path) -> list[str]:
         timeout=60,
     )
     return sorted({line for line in listing.stdout.splitlines() if line})
+
+
+class ExcludeRule(NamedTuple):
+    pattern: re.Pattern[str]
+    is_directory_only: bool
+
+
+GLOB_TOKEN = re.compile(r"\*\*/|\*\*|[*?]|\[[^]]*\]|[^*?\[]+|.")
+GLOB_REPLACEMENTS = {"**/": "(?:.*/)?", "**": ".*", "*": "[^/]*", "?": "[^/]"}
+CATCH_ALL_PROBES = ("a", "a/b/c")
+
+
+def exclude_rules(patterns: Iterable[str]) -> tuple[ExcludeRule, ...]:
+    compiled = (exclude_rule(pattern) for pattern in patterns)
+    return tuple(rule for rule in compiled if rule is not None)
+
+
+def exclude_rule(raw: str) -> ExcludeRule | None:
+    cleaned = raw.strip().removeprefix("./")
+    body = cleaned.strip("/")
+    if not body:
+        return None
+    prefix = "" if cleaned.startswith("/") or "/" in body else "(?:.*/)?"
+    source = prefix + "".join(glob_piece(token) for token in GLOB_TOKEN.findall(body))
+    try:
+        pattern = re.compile(source)
+    except re.error:
+        return None
+    if all(pattern.fullmatch(probe) for probe in CATCH_ALL_PROBES):
+        return None
+    return ExcludeRule(pattern, cleaned.endswith("/"))
+
+
+def glob_piece(token: str) -> str:
+    if token in GLOB_REPLACEMENTS:
+        return GLOB_REPLACEMENTS[token]
+    if len(token) > 2 and token.startswith("[") and token.endswith("]"):
+        return character_class(token[1:-1])
+    return re.escape(token)
+
+
+def character_class(body: str) -> str:
+    escaped = body.replace("\\", "\\\\")
+    return f"[^{escaped[1:]}]" if escaped[0] in "!^" else f"[{escaped}]"
+
+
+def ancestor_paths(name: str) -> tuple[str, ...]:
+    parts = name.split("/")[:-1]
+    return tuple("/".join(parts[: depth + 1]) for depth in range(len(parts)))
+
+
+def is_excluded(name: str, rules: tuple[ExcludeRule, ...]) -> bool:
+    if not rules:
+        return False
+    directories = ancestor_paths(name)
+    candidates = (*directories, name)
+    return any(
+        rule.pattern.fullmatch(candidate)
+        for rule in rules
+        for candidate in (directories if rule.is_directory_only else candidates)
+    )
 
 
 def count_in(root: Path, relative: str) -> int | None:
@@ -64,26 +131,148 @@ def count_in(root: Path, relative: str) -> int | None:
 
 def prose_spans(source: str, dialect: str) -> list[Span]:
     lines = source.splitlines()
+    metadata_lines = script_metadata_lines(source) if dialect == PYTHON else frozenset()
     return [
-        span for span in spans_for(source, dialect) if not machine_directive(span, lines)
+        span
+        for span in spans_for(source, dialect)
+        if not machine_span(span, lines, metadata_lines)
     ]
 
 
+def machine_span(span: Span, lines: list[str], metadata_lines: frozenset[int]) -> bool:
+    if span.kind == "docstring":
+        return False
+    if span.first_line == span.last_line and span.first_line in metadata_lines:
+        return True
+    opening = lines[span.first_line - 1] if span.first_line <= len(lines) else ""
+    if not shebang(opening) and not MACHINE_DIRECTIVE.search(opening):
+        return False
+    return all(
+        directive_continuation(lines[number - 1])
+        for number in range(span.first_line + 1, min(span.last_line, len(lines)) + 1)
+    )
+
+
+SHEBANG = re.compile(r"#!\s*/\S+(?:\s+\S+){0,8}")
+
+
+def shebang(line: str) -> bool:
+    return SHEBANG.fullmatch(line.strip()) is not None
+
+
+class DirectiveFamily(NamedTuple):
+    name: str
+    body: str
+
+
+DIRECTIVE_FAMILIES = (
+    DirectiveFamily("build_constraints", r"go:|\+build"),
+    DirectiveFamily(
+        "linters",
+        r"nolint|lint:|noqa|pylint:|ruff:|mypy:|pyright:|isort:|shellcheck|nosec"
+        r"|yamllint\s+disable|tflint-ignore:",
+    ),
+    DirectiveFamily("suppressions", r"type:\s*ignore|pragma:"),
+    DirectiveFamily(
+        "formatters", r"prettier|fmt:\s*(?:on|off|skip)|yapf:\s*(?:disable|enable)"
+    ),
+    DirectiveFamily("sorters", r"keep-sorted\s+(?:start|end)"),
+    DirectiveFamily("javascript_tooling", r"eslint|biome|@ts-|istanbul|c8\s+ignore"),
+    DirectiveFamily(
+        "typescript_references", r"/\s*<(?:reference|amd-module|amd-dependency)\b"
+    ),
+    DirectiveFamily("source_maps", r"#\s*sourceMappingURL=\S"),
+    DirectiveFamily("spellers", r"cspell:|codespell:"),
+    DirectiveFamily("editors", r"noinspection\s+\w"),
+    DirectiveFamily("licences", r"SPDX-[A-Za-z-]+:"),
+    DirectiveFamily("encodings", r"coding[:=]"),
+    DirectiveFamily("container_parsers", r"(?:syntax|escape)=\S"),
+    DirectiveFamily("notebook_cells", r"%%\s*$"),
+)
+
 MACHINE_DIRECTIVE = re.compile(
-    r"(?:#|//|--|/\*)\s*(?:go:|nolint|lint:|\+build|eslint|prettier|@ts-|biome|istanbul"
-    r"|noqa|type:\s*ignore|pragma:|fmt:\s*(?:on|off)|pylint:|ruff:|mypy:|isort:"
-    r"|shellcheck|coding[:=])",
+    r"(?:#|//|--|/\*)\s*(?:"
+    + "|".join(family.body for family in DIRECTIVE_FAMILIES)
+    + r")",
     re.IGNORECASE,
 )
 
+DIRECTIVE_CONTINUATION = re.compile(r"\*?\s*\S*?,?\s*(?:\*/)?")
 
-def machine_directive(span: Span, lines: list[str]) -> bool:
-    if span.first_line != span.last_line or span.first_line > len(lines):
+
+def directive_continuation(line: str) -> bool:
+    return DIRECTIVE_CONTINUATION.fullmatch(line.strip()) is not None
+
+
+SCRIPT_METADATA_MARKER = "# ///"
+SCRIPT_METADATA_OPEN = "# /// script"
+SCRIPT_METADATA_MAX_LINES = 50
+SCRIPT_METADATA_KEYS = frozenset({"requires-python", "dependencies", "tool"})
+
+
+def script_metadata_lines(source: str) -> frozenset[int]:
+    if SCRIPT_METADATA_MARKER not in source:
+        return frozenset()
+    lines = source.splitlines()
+    region = script_metadata_region(lines)
+    if region is None:
+        return frozenset()
+    opener, closer = region
+    body = script_metadata_body(lines[opener : closer - 1])
+    if body is None or not script_metadata_toml(body):
+        return frozenset()
+    return frozenset(range(opener, closer + 1))
+
+
+def script_metadata_region(lines: list[str]) -> tuple[int, int] | None:
+    prelude = comment_prelude_length(lines)
+    opener = next(
+        (
+            number
+            for number in range(1, prelude + 1)
+            if lines[number - 1].strip() == SCRIPT_METADATA_OPEN
+        ),
+        None,
+    )
+    if opener is None:
+        return None
+    last_allowed = min(opener + SCRIPT_METADATA_MAX_LINES, len(lines))
+    closer = next(
+        (
+            number
+            for number in range(opener + 1, last_allowed + 1)
+            if lines[number - 1].strip() == SCRIPT_METADATA_MARKER
+        ),
+        None,
+    )
+    return None if closer is None else (opener, closer)
+
+
+def comment_prelude_length(lines: list[str]) -> int:
+    for number, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            return number - 1
+    return len(lines)
+
+
+def script_metadata_body(lines: list[str]) -> str | None:
+    stripped = [line.strip() for line in lines]
+    if any(
+        line != "#" and (not line.startswith("# ") or line.startswith("# #"))
+        for line in stripped
+    ):
+        return None
+    return "\n".join(line[2:] for line in stripped)
+
+
+def script_metadata_toml(body: str) -> bool:
+    try:
+        import tomllib
+
+        return set(tomllib.loads(body)) <= SCRIPT_METADATA_KEYS
+    except (ImportError, ValueError):
         return False
-    line = lines[span.first_line - 1]
-    if span.first_line == 1 and line.startswith("#!"):
-        return True
-    return MACHINE_DIRECTIVE.search(line) is not None
 
 
 CSTYLE, RUST, PYTHON = "cstyle", "rust", "python"
@@ -434,22 +623,46 @@ def repo_root(start: Path) -> Path | None:
     return Path(found.stdout.strip()) if found.stdout.strip() else None
 
 
-def load_budget(path: Path) -> dict[str, int] | None:
+class Budget(NamedTuple):
+    ceilings: dict[str, int]
+    excludes: tuple[str, ...]
+
+
+def load_budget(path: Path) -> Budget | None:
     try:
         spec = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
     if not isinstance(spec, dict):
         return None
+    return Budget(ceilings_in(spec), excludes_in(spec))
+
+
+def ceilings_in(spec: dict[str, object]) -> dict[str, int]:
     return {
         name: int(allowed)
         for name, allowed in spec.items()
-        if name != BANNER and isinstance(allowed, (int, float))
+        if name not in RESERVED_KEYS and isinstance(allowed, (int, float))
     }
 
 
-def write_budget(path: Path, ceilings: dict[str, int]) -> None:
-    spec = {BANNER: BANNER_TEXT, **{name: ceilings[name] for name in sorted(ceilings)}}
+def excludes_in(spec: dict[str, object]) -> tuple[str, ...]:
+    listed = spec.get(EXCLUDE)
+    if not isinstance(listed, list):
+        return ()
+    return tuple(entry for entry in listed if isinstance(entry, str))
+
+
+def excludes_of(budget: Budget | None) -> tuple[str, ...]:
+    return budget.excludes if budget is not None else ()
+
+
+def write_budget(path: Path, budget: Budget) -> None:
+    spec = {
+        BANNER: BANNER_TEXT,
+        EXCLUDE: list(budget.excludes),
+        **{name: budget.ceilings[name] for name in sorted(budget.ceilings)},
+    }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(spec, indent=2) + "\n", encoding="utf-8")
 
@@ -467,8 +680,9 @@ def main() -> None:
     if root is None:
         print("not a git worktree")
         return
-    counts = counts_for_tree(root)
-    ceilings = load_budget(root / ".claude" / BUDGET_NAME) or {}
+    recorded = load_budget(root / ".claude" / BUDGET_NAME)
+    counts = counts_for_tree(root, excludes_of(recorded))
+    ceilings = recorded.ceilings if recorded is not None else {}
     for name, count in sorted(counts.items(), key=lambda item: -item[1]):
         allowed = ceilings.get(name, 0)
         mark = "OVER" if count > allowed else "    "

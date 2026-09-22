@@ -10,7 +10,9 @@ from pathlib import Path
 
 from expository_scan import (
     BUDGET_NAME,
+    Budget,
     counts_for_tree,
+    excludes_of,
     load_budget,
     overruns,
     repo_root,
@@ -37,20 +39,20 @@ def enforce(event: dict[str, object]) -> None:
     if root is None:
         return
     budget_path = project / ".claude" / BUDGET_NAME
-    ceilings = load_budget(budget_path)
-    counts = counts_for_tree(root)
-    if ceilings is None:
-        write_budget(budget_path, counts)
+    recorded = load_budget(budget_path)
+    counts = counts_for_tree(root, excludes_of(recorded))
+    if recorded is None:
+        write_budget(budget_path, Budget(counts, ()))
         return
-    lowered = ratchet(ceilings, counts)
-    if lowered != ceilings:
+    lowered = Budget(ratchet(recorded.ceilings, counts), recorded.excludes)
+    if lowered != recorded:
         write_budget(budget_path, lowered)
-    over = overruns(counts, lowered)
+    over = overruns(counts, lowered.ceilings)
     if over:
         print(json.dumps({
             "decision": "block",
-            "reason": refusal(over, lowered, budget_path),
-            "systemMessage": summary(over, lowered),
+            "reason": refusal(over, lowered.ceilings, budget_path),
+            "systemMessage": summary(over, lowered.ceilings),
         }))
 
 
