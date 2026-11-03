@@ -9,8 +9,9 @@ from expository_scan import BUDGET_NAME
 
 REASON = (
     f"{BUDGET_NAME} records what the codebase is allowed to say in prose, and it is the "
-    "user's file: nothing Claude Code does may raise a ceiling, so this edit is refused "
-    "whatever it contains. Ceilings fall on their own as comments and docstrings are "
+    "user's file: nothing Claude Code does may raise a ceiling; this hook rejects any "
+    "commands that mention this file to prevent non-obvious workarounds to alter the "
+    "ceiling. Ceilings fall on their own as comments and docstrings are "
     "removed. If a comment has genuinely earned its place, stop and ask the user to raise "
     "its number by hand."
 )
@@ -40,13 +41,17 @@ def targets_budget(event: dict[str, object]) -> bool:
 
 
 def deny() -> None:
-    print(json.dumps({
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "deny",
-            "permissionDecisionReason": REASON,
-        }
-    }))
+    print(
+        json.dumps(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": REASON,
+                }
+            }
+        )
+    )
 
 
 if __name__ == "__main__":

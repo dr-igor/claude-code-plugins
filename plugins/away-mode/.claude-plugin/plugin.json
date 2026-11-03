@@ -1,7 +1,7 @@
 {
   "name": "away-mode",
-  "description": "Denies permission prompts while you are away so Claude keeps working instead of stalling, switched per session with /away, /here and /auto, or left to a locked screen and window focus to decide",
-  "version": "0.2.0",
+  "description": "Denies every Bash permission prompt so autonomous sessions keep working instead of stalling, and logs what was blocked for review",
+  "version": "0.3.0",
   "author": {
     "name": "Igor Petrik"
   }

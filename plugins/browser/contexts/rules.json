@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "context": "contexts/sandbox-interop.md",
+      "tools": [
+        "Edit",
+        "Write"
+      ],
+      "path_regex": "(^|/)((vitest|playwright|wdio|karma|web-test-runner|wtr|puppeteer)[^/]*\\.config\\.[cm]?[jt]s|\\.puppeteerrc[^/]*|\\.playwright/cli\\.config\\.json)$"
+    },
+    {
+      "context": "contexts/sandbox-interop.md",
+      "tools": [
+        "Bash"
+      ],
+      "command_regex": "\\bplaywright(-cli)?\\b|\\bpuppeteer\\b|chrome-headless-shell|--browser\\b|\\bwdio\\b"
+    }
+  ]
+}

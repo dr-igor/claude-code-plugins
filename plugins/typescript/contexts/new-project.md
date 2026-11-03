@@ -1,5 +1,9 @@
 # TypeScript Project Setup Rules
 
+## TypeScript Version
+
+- Until TS 7.1 is released and the compatible eslint is available, new projects should use TS 6.
+
 ## `package.json` Scripts
 
 - Include scripts for

@@ -1,47 +1,13 @@
 {
-  "description": "Denies permission prompts while a session is unattended, decided per session at the moment the prompt appears, and logs what was blocked",
+  "description": "Denies every Bash permission prompt so an unattended session keeps working, and logs what was blocked",
   "hooks": {
     "PermissionRequest": [
       {
-        "matcher": "^(?!(ExitPlanMode|AskUserQuestion)$).*",
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/scripts/away-mode-deny.py",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "UserPromptExpansion": [
-      {
-        "matcher": "(^|:)(away|here|auto)$",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/away-mode-command.py",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/away-mode-session.py",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/away-mode-session.py",
             "timeout": 10
           }
         ]

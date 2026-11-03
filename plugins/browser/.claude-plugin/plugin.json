@@ -1,0 +1,8 @@
+{
+  "name": "browser",
+  "description": "Running browsers from Claude Code: sandbox interop guidance for Chromium-based tools, injected on runner config edits, browser commands, and known failure output",
+  "version": "0.1.0",
+  "author": {
+    "name": "Igor Petrik"
+  }
+}

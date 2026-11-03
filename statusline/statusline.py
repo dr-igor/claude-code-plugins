@@ -66,7 +66,6 @@ def main(
         + factory.thinking_indicator()
         + factory.mode_bar_block()
         + factory.inspector()
-        + factory.away_mode()
         + factory.reset_times()
     )
 
@@ -179,13 +178,6 @@ class ComponentFactory:
             return render_inspector(query_inspector(self.payload))
         except Exception:
             logger.warning("inspector cell failed", exc_info=True)
-            return Text()
-
-    def away_mode(self) -> Text:
-        try:
-            return render_away_mode(query_away_mode(self.payload))
-        except Exception:
-            logger.warning("away mode cell failed", exc_info=True)
             return Text()
 
     def reset_times(self) -> Text:
@@ -464,109 +456,6 @@ def _capped(count: int) -> int:
     return min(count, INSPECTOR_COUNT_CEILING)
 
 
-def query_away_mode(payload: Payload) -> AwayModeState:
-    session_id = str(payload.get("session_id") or "")
-    record = away_mode_record(session_id)
-    until = away_mode_until(record.get("until"))
-    denials = record.get("denials")
-    mode = record.get("mode")
-    return AwayModeState(
-        status=away_mode_status(
-            str(mode) if mode in AWAY_MODE_MODES else AWAY_MODE_DEFAULT,
-            until,
-            session_id,
-        ),
-        until=until,
-        denials=_capped(denials) if isinstance(denials, int) else 0,
-    )
-
-
-def away_mode_record(session_id: str) -> dict[str, object]:
-    path = away_mode_path(session_id)
-    if path is None:
-        return {}
-    try:
-        record = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
-    return record if isinstance(record, dict) else {}
-
-
-def away_mode_path(session_id: str) -> Path | None:
-    if not AWAY_MODE_SESSION_ID.match(session_id):
-        return None
-    override = environ.get(AWAY_MODE_SESSIONS_ENV)
-    root = Path(override).expanduser() if override else AWAY_MODE_SESSIONS
-    return root / f"{session_id}.json"
-
-
-def away_mode_until(value: object) -> datetime | None:
-    if not isinstance(value, str):
-        return None
-    try:
-        return datetime.fromisoformat(value)
-    except ValueError:
-        return None
-
-
-def away_mode_status(mode: str, until: datetime | None, session_id: str) -> str:
-    if mode == "away":
-        return "away"
-    if mode == "here" and not away_mode_expired(until):
-        return "here"
-    return "away" if away_mode_presence(session_id) == "absent" else "here"
-
-
-def away_mode_expired(until: datetime | None) -> bool:
-    return until is not None and until <= datetime.now(until.tzinfo)
-
-
-def away_mode_presence(session_id: str) -> str:
-    script = away_mode_state_script()
-    if script is None:
-        return "unknown"
-    try:
-        completed = subprocess.run(
-            [str(script), session_id],
-            capture_output=True,
-            text=True,
-            stdin=subprocess.DEVNULL,
-            timeout=AWAY_MODE_PRESENCE_TIMEOUT,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError) as error:
-        logger.warning(f"away mode presence failed: {error!r}")
-        return "unknown"
-    return completed.stdout.strip() if completed.returncode == 0 else "unknown"
-
-
-def away_mode_state_script() -> Path | None:
-    override = environ.get(AWAY_MODE_SCRIPT_ENV)
-    script = Path(override).expanduser() if override else AWAY_MODE_SCRIPT
-    return script if access(script, X_OK) else None
-
-
-def render_away_mode(state: AwayModeState) -> Text:
-    label = AWAY_MODE_LABELS[state.status]
-    if remaining := away_mode_remaining(state.until):
-        label += f" {remaining}"
-    if state.denials:
-        label += f" {AWAY_MODE_DENIED}{state.denials}"
-    return Text(" ") + Text(f"[{label}]", style=AWAY_MODE_STYLES[state.status])
-
-
-def away_mode_remaining(until: datetime | None) -> str:
-    if until is None:
-        return ""
-    minutes = ceil((until - datetime.now(until.tzinfo)).total_seconds() / 60)
-    if minutes <= 0:
-        return ""
-    if minutes < 60:
-        return f"{minutes}m"
-    hours = ceil(minutes / 60)
-    return f"{hours}h" if hours < 48 else f"{ceil(hours / 24)}d"
-
-
 INSPECTOR_CONFIG_ENV = "QUALITY_INSPECTOR_CONFIG"
 INSPECTOR_BIN_ENV = "BELPHEGOR_BIN"
 INSPECTOR_CONFIG_NAME = "quality-inspector.yaml"
@@ -578,30 +467,6 @@ INSPECTOR_CONFIG_NAME = "quality-inspector.yaml"
 # be spawned in this sandbox.
 INSPECTOR_STATUS_TIMEOUT = 1.0
 INSPECTOR_COUNT_CEILING = 99
-
-AWAY_MODE_SESSIONS_ENV = "AWAY_MODE_SESSIONS"
-AWAY_MODE_SESSIONS = Path.home() / ".claude" / "away-mode" / "sessions"
-AWAY_MODE_SESSION_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
-AWAY_MODE_DEFAULT = "auto"
-AWAY_MODE_MODES = ("away", "here", "auto")
-AWAY_MODE_LABELS = {"away": "AWAY", "here": "HERE"}
-AWAY_MODE_STYLES = {"away": "bold yellow", "here": "dim"}
-AWAY_MODE_DENIED = "x"
-AWAY_MODE_SCRIPT_ENV = "AWAY_MODE_STATE_SCRIPT"
-AWAY_MODE_SCRIPT = (
-    Path(__file__).resolve().parent.parent
-    / "plugins"
-    / "away-mode"
-    / "scripts"
-    / "away_mode_state.py"
-)
-AWAY_MODE_PRESENCE_TIMEOUT = 2.0
-
-
-class AwayModeState(NamedTuple):
-    status: str = "here"
-    until: datetime | None = None
-    denials: int = 0
 
 
 class InspectorState(NamedTuple):

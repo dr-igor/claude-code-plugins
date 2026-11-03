@@ -1,8 +1,0 @@
-{
-  "name": "plan-review",
-  "description": "Preloads relevant context into the Plan subagent and reviews plans against your conventions before exit",
-  "version": "0.1.0",
-  "author": {
-    "name": "Igor Petrik"
-  }
-}

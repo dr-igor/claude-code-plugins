@@ -24,7 +24,7 @@
     {
       "name": "typescript",
       "description": "TypeScript coding guidelines and best practices",
-      "version": "1.0.7",
+      "version": "1.0.8",
       "source": "./plugins/typescript",
       "category": "development"
     },
@@ -94,7 +94,7 @@
     {
       "name": "visualize",
       "source": "./plugins/visualize",
-      "description": "Create beautiful, self-contained HTML visualizations from any content or idea. Slide decks, dashboards, infographics, flowcharts, timelines, and more.\n\n(adapted from `careerhackeralex/visualize`)",
+      "description": "Create beautiful, self-contained HTML visualizations from any content or idea. Use for slide decks, dashboards, infographics, flowcharts, timelines, cheat sheets, posters, and more.\n\n(adapted from `careerhackeralex/visualize`)",
       "version": "0.4.0",
       "license": "MIT",
       "keywords": [
@@ -109,30 +109,30 @@
     },
     {
       "name": "quality-inspector",
-      "description": "Reports newly-introduced quality findings around edit bursts, via belphegor",
+      "description": "Reports newly-introduced quality findings (linters/type-checkers) around edit bursts, via belphegor",
       "version": "0.1.0",
       "source": "./plugins/quality-inspector",
       "category": "development"
     },
     {
-      "name": "plan-review",
-      "description": "Preloads relevant context into the Plan subagent and reviews plans against your conventions before exit",
-      "version": "0.1.0",
-      "source": "./plugins/plan-review",
-      "category": "productivity"
-    },
-    {
       "name": "away-mode",
-      "description": "Denies permission prompts while you are away so Claude keeps working instead of stalling, switched per session with /away, /here and /auto, or left to a locked screen and window focus to decide",
-      "version": "0.2.0",
+      "description": "Denies every Bash permission prompt so autonomous sessions keep working instead of stalling, and logs what was blocked for review",
+      "version": "0.3.0",
       "source": "./plugins/away-mode",
       "category": "productivity"
     },
     {
       "name": "expository-budget",
       "description": "Holds every code file to a per-file ceiling on comments and docstrings; the ceiling falls as prose is removed and only you can raise it",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "source": "./plugins/expository-budget",
+      "category": "development"
+    },
+    {
+      "name": "browser",
+      "description": "Running browsers from Claude Code: sandbox interop guidance for Chromium-based tools, injected on runner config edits, browser commands, and known failure output",
+      "version": "0.1.0",
+      "source": "./plugins/browser",
       "category": "development"
     }
   ]

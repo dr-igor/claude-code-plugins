@@ -139,6 +139,17 @@ Injects Terraform/OpenTofu infrastructure-as-code conventions:
 
 **Best for**: Terraform/OpenTofu infrastructure-as-code projects (versions 1.10+)
 
+### Browser (`browser`)
+
+Injects `sandbox-interop.md`, guidance for running Chromium-based tools (Playwright, Vitest browser mode, Puppeteer, `playwright-cli`) under the Claude Code sandbox on macOS:
+
+- Why multi-process Chromium dies in the sandbox, and which settings don't help
+- Option A: single-process Chromium with everything sandboxed
+- Option B: a browser server outside the sandbox with sandboxed clients, and its per-project permission setup
+- Injected when editing a browser-runner config, before browser commands, and when a tool result or failure shows a known sandbox signature
+
+**Best for**: Projects that run browser tests or browser automation from sandboxed sessions
+
 ## Installation
 
 ### 1. Add this marketplace to Claude Code
