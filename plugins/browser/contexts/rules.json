@@ -15,6 +15,35 @@
         "Bash"
       ],
       "command_regex": "\\bplaywright(-cli)?\\b|\\bpuppeteer\\b|chrome-headless-shell|--browser\\b|\\bwdio\\b"
+    },
+    {
+      "context": "contexts/playwright-cli.md",
+      "tools": [
+        "Skill"
+      ],
+      "skill_regex": "^([^:]+:)?playwright-cli$"
+    },
+    {
+      "context": "contexts/playwright-cli.md",
+      "events": [
+        "UserPromptSubmit"
+      ],
+      "prompt_regex": "^\\s*/playwright-cli\\b"
+    },
+    {
+      "context": "contexts/playwright-cli.md",
+      "tools": [
+        "Bash"
+      ],
+      "command_regex": "\\bplaywright-cli\\b|\\bplaywright\\s+cli\\b"
+    },
+    {
+      "context": "contexts/playwright-cli.md",
+      "tools": [
+        "Edit",
+        "Write"
+      ],
+      "path_regex": "(^|/)\\.playwright/cli\\.config\\.json$"
     }
   ]
 }

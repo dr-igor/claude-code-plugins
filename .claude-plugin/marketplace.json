@@ -79,8 +79,8 @@
     },
     {
       "name": "shell-guard",
-      "description": "Auto-rejects common, known-annoying shell command patterns (complexity/efficiency guard, not a security boundary)",
-      "version": "0.2.0",
+      "description": "Rejects inefficient Bash commands before they run, and denies permission prompts for commands too complex to review (not a security boundary)",
+      "version": "0.4.0",
       "source": "./plugins/shell-guard",
       "category": "computer-use"
     },
@@ -90,22 +90,6 @@
       "version": "0.1.0",
       "source": "./plugins/just",
       "category": "development"
-    },
-    {
-      "name": "visualize",
-      "source": "./plugins/visualize",
-      "description": "Create beautiful, self-contained HTML visualizations from any content or idea. Use for slide decks, dashboards, infographics, flowcharts, timelines, cheat sheets, posters, and more.\n\n(adapted from `careerhackeralex/visualize`)",
-      "version": "0.4.0",
-      "license": "MIT",
-      "keywords": [
-        "visualization",
-        "html",
-        "slides",
-        "dashboard",
-        "infographic",
-        "design"
-      ],
-      "category": "document-creation"
     },
     {
       "name": "quality-inspector",
@@ -130,8 +114,8 @@
     },
     {
       "name": "browser",
-      "description": "Running browsers from Claude Code: sandbox interop guidance for Chromium-based tools, injected on runner config edits, browser commands, and known failure output",
-      "version": "0.1.0",
+      "description": "Running browsers from Claude Code: sandbox interop guidance for Chromium-based tools and the playwright-cli skill, injected on runner config edits, browser commands, skill invocation, and known failure output",
+      "version": "0.2.0",
       "source": "./plugins/browser",
       "category": "development"
     }

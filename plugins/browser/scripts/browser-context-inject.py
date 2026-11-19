@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 """Deterministically inject language/context files on matching tool calls.
 
-PreToolUse hook. Reads a plugin-local ``contexts/rules.json`` describing which
-context files to inject for which tools/files/commands, then injects any that
+PreToolUse and UserPromptSubmit hook. Reads a plugin-local ``contexts/rules.json``
+describing which context files to inject for which tools, events, files,
+commands, skills and prompts, then injects any that
 have not already been loaded into the conversation since the last compaction
 boundary. No LLM/agent involvement — pure rule evaluation plus a transcript
 dedup pass. Any failure exits 0 with no output so a hook error never breaks the
 triggering tool call.
 """
+
+from __future__ import annotations
+
 import json
 import os
 import re
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 MARKER_WALK_CAP = 30
@@ -24,15 +29,33 @@ def load_stdin():
     return json.load(sys.stdin)
 
 
-def target_from_input(tool_name, tool_input):
-    """Return (path, command) for the triggering tool, either may be None."""
-    if tool_name in ("Edit", "Write"):
-        return tool_input.get("file_path"), None
-    if tool_name == "NotebookEdit":
-        return tool_input.get("notebook_path"), None
-    if tool_name == "Bash":
-        return None, tool_input.get("command")
-    return None, None
+@dataclass(frozen=True)
+class Target:
+    trigger: str
+    file_abs: str | None = None
+    command: str | None = None
+    skill: str | None = None
+    prompt: str | None = None
+
+
+def target_from_input(data, cwd):
+    tool_name = data.get("tool_name")
+    if not tool_name:
+        return Target(
+            trigger=data.get("hook_event_name", ""), prompt=data.get("prompt")
+        )
+    tool_input = data.get("tool_input") or {}
+    file_path = tool_input.get(
+        "notebook_path" if tool_name == "NotebookEdit" else "file_path"
+    )
+    return Target(
+        trigger=tool_name,
+        file_abs=abs_path(file_path, cwd)
+        if file_path and tool_name in ("Edit", "Write", "NotebookEdit")
+        else None,
+        command=tool_input.get("command") if tool_name == "Bash" else None,
+        skill=tool_input.get("skill") if tool_name == "Skill" else None,
+    )
 
 
 def abs_path(file_path, cwd):
@@ -57,14 +80,14 @@ def has_marker(file_abs, markers):
     return False
 
 
-def rule_matches(rule, tool_name, file_abs, command):
-    if tool_name not in rule.get("tools", []):
+def rule_matches(rule, target):
+    if target.trigger not in rule.get("tools", []) + rule.get("events", []):
         return False
 
+    file_abs = target.file_abs
     exts = rule.get("extensions")
     path_regex = rule.get("path_regex")
     markers = rule.get("project_markers")
-    command_regex = rule.get("command_regex")
 
     if exts or path_regex or markers:
         if not file_abs:
@@ -77,11 +100,15 @@ def rule_matches(rule, tool_name, file_abs, command):
         if markers and not has_marker(file_abs, markers):
             return False
 
-    if command_regex:
-        if not command or not re.search(command_regex, command, re.IGNORECASE):
-            return False
-
-    return True
+    return all(
+        value and re.search(pattern, value, re.IGNORECASE)
+        for key, value in (
+            ("command_regex", target.command),
+            ("skill_regex", target.skill),
+            ("prompt_regex", target.prompt),
+        )
+        if (pattern := rule.get(key))
+    )
 
 
 def resolve_context(context, plugin_root):
@@ -113,7 +140,10 @@ def dedup(needed, transcript_path):
                     obj = json.loads(line)
                 except ValueError:
                     continue
-                if obj.get("type") == "system" and obj.get("subtype") == "compact_boundary":
+                if (
+                    obj.get("type") == "system"
+                    and obj.get("subtype") == "compact_boundary"
+                ):
                     seen.clear()
                 continue
             for p in needed:
@@ -172,8 +202,6 @@ def read_tool_use_of(obj, path):
 def main():
     try:
         data = load_stdin()
-        tool_name = data.get("tool_name", "")
-        tool_input = data.get("tool_input") or {}
         cwd = data.get("cwd") or os.getcwd()
         transcript_path = data.get("transcript_path")
 
@@ -184,12 +212,11 @@ def main():
             return
         rules = json.loads(rules_file.read_text()).get("rules", [])
 
-        file_path, command = target_from_input(tool_name, tool_input)
-        file_abs = abs_path(file_path, cwd) if file_path else None
+        target = target_from_input(data, cwd)
 
         matched = []  # list of (abs_context_path_str, resolved_path)
         for rule in rules:
-            if not rule_matches(rule, tool_name, file_abs, command):
+            if not rule_matches(rule, target):
                 continue
             resolved = resolve_context(rule.get("context", ""), plugin_root)
             if resolved is None or not resolved.is_file():
@@ -218,7 +245,7 @@ def main():
                 {
                     "systemMessage": f"cc-plugins-igorlabworks/{plugin_name}: {', '.join(names)} added to context.",
                     "hookSpecificOutput": {
-                        "hookEventName": "PreToolUse",
+                        "hookEventName": data.get("hook_event_name", "PreToolUse"),
                         "additionalContext": "\n\n---\n\n".join(blocks),
                     },
                 }

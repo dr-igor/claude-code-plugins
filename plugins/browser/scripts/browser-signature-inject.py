@@ -5,26 +5,36 @@ import re
 import sys
 from pathlib import Path
 
-CONTEXT = "contexts/sandbox-interop.md"
+INTEROP = "contexts/sandbox-interop.md"
+PLAYWRIGHT_CLI = "contexts/playwright-cli.md"
+
+LOG_SUFFIXES = {".err", ".log", ".out", ".output", ".txt"}
 
 SIGNATURES = [
     (
         "Chromium could not register its Mach rendezvous service",
-        re.compile(
-            r"(bootstrap_check_in|MachPortRendezvousServer)[^\n]*Permission denied"
-        ),
+        re.compile(r"MachPortRendezvousServer\.\d+: Permission denied"),
+        INTEROP,
     ),
     (
         "Chromium could not lock its profile directory",
         re.compile(r"Failed to create a ProcessSingleton"),
+        INTEROP,
     ),
     (
         "a Unix socket bind was refused",
         re.compile(r"listen EPERM: operation not permitted [^\s\"]+\.sock"),
+        INTEROP,
     ),
     (
         "the browser closed while opening a page",
         re.compile(r"Target page, context or browser has been closed"),
+        INTEROP,
+    ),
+    (
+        "playwright-cli connected to a remote browser without isolated: true",
+        re.compile(r"unable to connect to a browser that does not have any contexts"),
+        PLAYWRIGHT_CLI,
     ),
 ]
 
@@ -45,8 +55,12 @@ def strings_in(value):
     return []
 
 
-def matched_labels(text):
-    return [label for label, pattern in SIGNATURES if pattern.search(text)]
+def matches_by_context(text):
+    matches = {}
+    for label, pattern, context in SIGNATURES:
+        if pattern.search(text):
+            matches.setdefault(context, []).append(label)
+    return matches
 
 
 def already_loaded(context_path, transcript_path):
@@ -64,43 +78,58 @@ def already_loaded(context_path, transcript_path):
     return loaded
 
 
-def is_reading_context(data, context_path):
-    file_path = (data.get("tool_input") or {}).get("file_path")
-    return bool(file_path) and Path(file_path).resolve() == Path(context_path)
+def is_scannable(data):
+    if data.get("tool_name") != "Read":
+        return True
+    file_path = (data.get("tool_input") or {}).get("file_path") or ""
+    return Path(file_path).suffix.lower() in LOG_SUFFIXES
 
 
 def main():
     try:
         data = json.load(sys.stdin)
+        if not is_scannable(data):
+            return
         plugin_root = os.environ.get("CLAUDE_PLUGIN_ROOT", "")
-        context_path = str((Path(plugin_root) / CONTEXT).resolve())
-        if is_reading_context(data, context_path):
+        matches = matches_by_context(result_text(data))
+        if not matches:
             return
-        labels = matched_labels(result_text(data))
-        if not labels:
-            return
-        note = f"This tool result matches a known browser-in-sandbox failure: {'; '.join(labels)}."
-        if already_loaded(context_path, data.get("transcript_path")):
-            context = f"{note} See {context_path}, already in context."
-            message = f"cc-plugins-igorlabworks/browser: matched {', '.join(labels)}."
-        else:
-            context = f"{note}\n\nContents of {context_path}:\n\n{Path(context_path).read_text()}"
-            message = (
-                "cc-plugins-igorlabworks/browser: sandbox-interop.md added to context."
+        sections = [
+            context_section(
+                str((Path(plugin_root) / context).resolve()),
+                labels,
+                data.get("transcript_path"),
             )
+            for context, labels in matches.items()
+        ]
         print(
             json.dumps(
                 {
-                    "systemMessage": message,
+                    "systemMessage": "\n".join(message for message, _ in sections),
                     "hookSpecificOutput": {
                         "hookEventName": data.get("hook_event_name", "PostToolUse"),
-                        "additionalContext": context,
+                        "additionalContext": "\n\n---\n\n".join(
+                            context for _, context in sections
+                        ),
                     },
                 }
             )
         )
     except (OSError, ValueError, TypeError, AttributeError):
         sys.exit(0)
+
+
+def context_section(context_path, labels, transcript_path):
+    note = f"This tool result matches a known browser-in-sandbox failure: {'; '.join(labels)}."
+    if already_loaded(context_path, transcript_path):
+        return (
+            f"cc-plugins-igorlabworks/browser: matched {', '.join(labels)}.",
+            f"{note} See {context_path}, already in context.",
+        )
+    return (
+        f"cc-plugins-igorlabworks/browser: {Path(context_path).name} added to context.",
+        f"{note}\n\nContents of {context_path}:\n\n{Path(context_path).read_text()}",
+    )
 
 
 if __name__ == "__main__":

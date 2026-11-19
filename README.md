@@ -148,6 +148,11 @@ Injects `sandbox-interop.md`, guidance for running Chromium-based tools (Playwri
 - Option B: a browser server outside the sandbox with sandboxed clients, and its per-project permission setup
 - Injected when editing a browser-runner config, before browser commands, and when a tool result or failure shows a known sandbox signature
 
+Also injects `playwright-cli.md`, which supplements the `playwright-cli` skill without editing it (`playwright-cli install --skills` regenerates that skill and would erase local changes):
+
+- The sandbox configs, socket permission and browser-server setup that make `playwright-cli open` work
+- Injected when Claude invokes the skill, when you type `/playwright-cli`, before `playwright-cli` commands, on `.playwright/cli.config.json` edits, and on the CLI's missing-`isolated` failure
+
 **Best for**: Projects that run browser tests or browser automation from sandboxed sessions
 
 ## Installation
@@ -194,7 +199,7 @@ Each plugin contains:
 
 - A `SessionStart` hook that runs when you start a session and injects the plugin's `CLAUDE_.md` pointer.
 - A `PreToolUse` hook (`scripts/<name>-context-inject.py`) that fires on `Edit`/`Write`/`NotebookEdit` (and `Bash` for `core-context`). It reads the plugin's `contexts/rules.json`, matches the edited file's extension / path / project markers (or the command, for Bash rules), and injects the matching context file(s).
-- `contexts/rules.json` — a declarative mapping of trigger conditions to context files. The injector script's **content** is byte-identical across all plugins (it derives everything from `${CLAUDE_PLUGIN_ROOT}`); only its **filename** differs per plugin — Claude Code deduplicates hook commands per event by command name, so each copy must be uniquely named (the same reason the `<name>-session-start.py` scripts are). Only `rules.json` varies in substance.
+- `contexts/rules.json` — a declarative mapping of trigger conditions to context files. The injector script's **content** is byte-identical across all plugins (it derives everything from `${CLAUDE_PLUGIN_ROOT}`); only its **filename** differs per plugin — Claude Code deduplicates hook commands per event by command name, so each copy must be uniquely named (the same reason the `<name>-session-start.py` scripts are). Only `rules.json` varies in substance. The exception is `browser-context-inject.py`, a superset of the shared script: it also handles `UserPromptSubmit` and `Skill` calls, through the extra rule keys `events`, `skill_regex` and `prompt_regex`.
 
 **Deduplication**: before injecting, the injector script streams the conversation transcript and skips any context already loaded since the last compaction boundary. It recognizes prior injections (by the `Contents of <path>:` sentinel) as well as cases where the model already read the file itself — via the `Read` tool (relative paths resolved against the transcript entry's own `cwd`) or a Bash pager command (`cat`/`head`/`tail`/`less`/`more`/`bat`) naming the file. Any hook failure exits cleanly without blocking the tool call.
 

@@ -1,9 +1,29 @@
 {
-  "description": "Injects sandbox interop guidance when editing browser-runner configs, before browser commands, and when a tool result shows a sandbox-related browser failure",
+  "description": "Points to sandbox interop guidance on session start, and injects it when editing browser-runner configs, before browser commands, when the playwright-cli skill is invoked, and when a tool result shows a sandbox-related browser failure",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/browser-session-start.py"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/browser-context-inject.py"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
-        "matcher": "Edit|Write|Bash",
+        "matcher": "Edit|Write|Bash|Skill",
         "hooks": [
           {
             "type": "command",

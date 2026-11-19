@@ -1,5 +1,5 @@
 {
-  "description": "Pre-checks Bash commands and auto-rejects known-annoying patterns",
+  "description": "Rejects inefficient Bash commands before they run, and denies permission prompts for commands too complex to review",
   "hooks": {
     "PreToolUse": [
       {
@@ -8,6 +8,17 @@
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/shell-guard\""
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/shell-guard\" permission-request"
           }
         ]
       }
