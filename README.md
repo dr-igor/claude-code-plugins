@@ -155,6 +155,19 @@ Also injects `playwright-cli.md`, which supplements the `playwright-cli` skill w
 
 **Best for**: Projects that run browser tests or browser automation from sandboxed sessions
 
+### Prompt Why (`prompt-why`)
+
+A mod (a TypeScript hooks module, not a settings hook) that explains each permission prompt:
+
+- Refuses, without a prompt, any Bash call whose only cause is Bash's own permission check (no ask rule, hook, setting, plugin or organization ceiling), telling Claude to try a different call; Bash asks with any other cause, and every other tool's asks, still prompt
+
+- A toast (15 s) as each prompt appears, and a line in the theme's warning color under the call's row in the transcript (one per prompted call under a folded group's summary), naming what asked: an ask rule and the settings file holding it, a `PreToolUse` hook (with the settings and plugin hooks whose matcher covers the tool), another plugin's `tool.check` hook, a setting, an organization ceiling, the auto-mode classifier, or the tool's own check when nothing else matched
+- A note Claude reads after the result of each call that needed permission (hidden from you): the cause, Claude Code's full reason, and whether a dialog appeared or a `PermissionRequest` hook answered
+- `/prompt-why [count]` lists the last asks in full, including core's reason and whether a dialog appeared or a `PermissionRequest` hook answered in its place
+- Blind spots: the standard permission dialogs draw no plugin line (only the question-card dialog does), so the toast carries it; sandbox network prompts raise no event a mod can observe; the engine folds settings hooks' answers, so a hook ask lists candidates rather than the one hook; plugin hooks are found only through `installed_plugins.json` and each plugin's `hooks/hooks.json`
+
+**Best for**: Tracking down unexpected permission prompts
+
 ## Installation
 
 ### 1. Add this marketplace to Claude Code

@@ -1,0 +1,9 @@
+{
+  "name": "prompt-why",
+  "description": "Explains why each permission prompt appears (the ask rule and its settings file, the hook that asked, the auto-mode classifier, or the tool's own check), and refuses Bash calls that only Bash's own check would prompt for",
+  "version": "0.2.0",
+  "author": {
+    "name": "Igor Petrik"
+  },
+  "types": "./types/index.d.ts"
+}
